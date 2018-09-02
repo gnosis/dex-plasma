@@ -2,7 +2,8 @@ pragma solidity ^0.4.0;
 
 import "./SafeMath.sol";
 import "./Math.sol";
-import "./PlasmaRLP.sol";
+//import "./PlasmaRLP.sol";
+import "./RLP.sol";
 import "./Merkle.sol";
 import "./Validate.sol";
 import "./PriorityQueue.sol";
@@ -19,7 +20,7 @@ import "@gnosis.pm/util-contracts/contracts/Token.sol";
 contract Plasma {
     using SafeMath for uint256;
     using Merkle for bytes32;
-    using PlasmaRLP for bytes;
+
 
 
     /*
@@ -37,7 +38,7 @@ contract Plasma {
     event ExitStarted(
         address indexed exitor,
         uint256 indexed utxoPos,
-        address token,
+        uint256 token,
         uint256 amount
     );
 
@@ -61,7 +62,22 @@ contract Plasma {
     /*
      * Storage
      */
+     // same structs as in library, bad practice
+    struct ExitingTx {
+        address exitor;
+        uint256 token;
+        uint256 amount;
+        uint256 inputCount;
+    }
 
+    struct ExitingOrder {
+        address exitor;
+        uint256 targetToken;
+        uint256 sourceToken;
+        uint256 amount;
+        uint256 limitPrice;
+        bytes utxo;
+    }
 
     uint256 public constant CHILD_BLOCK_INTERVAL = 1000;
     uint256 public constant BOND_FOR_VOLUME_REQUEST  = 100000000000;
@@ -83,7 +99,7 @@ contract Plasma {
 
     struct Exit {
         address owner;
-        address token;
+        uint256 token;
         uint256 amount;
     }
 
@@ -127,7 +143,7 @@ contract Plasma {
         // Support only ETH on deployment; other tokens need
         // to be added explicitly.
         listedTokens[0] = WETH;
-        exitsQueues[WETH] = address(new PriorityQueue());
+        exitsQueues[0] = address(new PriorityQueue());
     }
 
 
@@ -242,14 +258,14 @@ contract Plasma {
     function deposit(uint256 amount, uint tokenNr)
         public
     {
-        Token token = listedTokens[tokenNr];
+        Token token = Token(listedTokens[tokenNr]);
         // Only allow up to CHILD_BLOCK_INTERVAL deposits per child block.
         require(currentDepositBlock < CHILD_BLOCK_INTERVAL);
         
         require(token.transferFrom(msg.sender, this, amount));
 
 
-        bytes32 root = keccak256(msg.sender, token, msg.value);
+        bytes32 root = keccak256(abi.encodePacked(msg.sender, token, amount));
         uint256 depositBlock = getDepositBlock();
         childChain[depositBlock] = ChildBlock({
             root: root,
@@ -258,7 +274,7 @@ contract Plasma {
         });
         currentDepositBlock = currentDepositBlock.add(1);
 
-        emit Deposit(msg.sender, depositBlock, address(token), msg.value);
+        emit Deposit(msg.sender, depositBlock, address(token), amount);
     }
 
     /**
@@ -267,7 +283,7 @@ contract Plasma {
      * @param _token Token type to deposit.
      * @param _amount Deposit amount.
      */
-    function startDepositExit(uint256 _depositPos, address _token, uint256 _amount)
+    function startDepositExit(uint256 _depositPos, uint _token, uint256 _amount)
         public
     {
         uint256 blknum = _depositPos / 1000000000;
@@ -277,7 +293,7 @@ contract Plasma {
 
         // Validate the given owner and amount.
         bytes32 root = childChain[blknum].root;
-        bytes32 depositHash = keccak256(msg.sender, _token, _amount);
+        bytes32 depositHash = keccak256(abi.encodePacked(msg.sender, _token, _amount));
         require(root == depositHash);
 
         addExitToQueue(_depositPos, msg.sender, _token, _amount, childChain[blknum].timestamp);
@@ -307,7 +323,7 @@ contract Plasma {
         require( _utxoPos < chainReset || chainReset ==0);
 
         // Check the sender owns this UTXO.
-        var exitingTx = _txBytes.createExitingTx(oindex);
+        ExitingTx memory exitingTx = createExitingTx(_txBytes, oindex);
         require(msg.sender == exitingTx.exitor);
 
         // Check the transaction was included in the chain and is correctly signed.
@@ -338,12 +354,12 @@ contract Plasma {
     )
         public
     {
-        uint256 eUtxoPos = _txBytes.getUtxoPos(_eUtxoIndex);
+        uint256 eUtxoPos = getUtxoPos(_txBytes, _eUtxoIndex);
         uint256 txindex = (_cUtxoPos % 1000000000) / 10000;
         bytes32 root = childChain[_cUtxoPos / 1000000000].root;
         bytes32 txHash = keccak256(_txBytes);
         bytes32 confirmationHash = keccak256(abi.encodePacked(txHash, root));
-        bytes32 merkleHash = keccak256(txHash, _sigs);
+        bytes32 merkleHash = keccak256(abi.encodePacked(txHash, _sigs));
         address owner = exits[eUtxoPos].owner;
 
         // Validate the spending transaction.
@@ -373,12 +389,12 @@ contract Plasma {
     )
         public
     {
-        uint256 eUtxoPos = _txBytes.getUtxoPos(_eUtxoIndex);
+        uint256 eUtxoPos = getUtxoPos(_txBytes, _eUtxoIndex);
         uint256 txindex = (_cUtxoPos % 1000000000) / 10000;
         bytes32 root = childChain[_cUtxoPos / 1000000000].root;
-        var txHash = keccak256(_txBytes);
-        var confirmationHash = keccak256(abi.encodePacked(txHash, root));
-        var merkleHash = keccak256(abi.encodePacked(txHash, _sigs));
+        bytes32 txHash = keccak256(_txBytes);
+        bytes32 confirmationHash = keccak256(abi.encodePacked(txHash, root));
+        bytes32 merkleHash = keccak256(abi.encodePacked(txHash, _sigs));
         address owner = exits[eUtxoPos].owner;
 
         // Validate the spending transaction.
@@ -391,93 +407,87 @@ contract Plasma {
 
 
     /**
-     * @dev Starts to exit a specified utxo.
-     * @param _utxoPos The position of the exiting utxo in the format of blknum * 1000000000 + index * 10000 + oindex.
-     * @param _txBytes The transaction being exited in RLP bytes format.
-     * @param _proof Proof of the exiting transactions inclusion for the block specified by utxoPos.
-     * @param _sigs Both transaction signatures and confirmations signatures used to verify that the exiting transaction has been confirmed.
-     */
+     * @dev Starts to exit a specified order input */
     function startOrderInputExit(
-        uint256 _orderPos,
         bytes _orderBytes,
-        uint256 orderIndex,
         bytes _orderProof,
-        bool orderVolumeKnown,
-        uint256 orderVolume,
         bytes _volumeProof,
         bytes _doubleSig,
         bytes _doubleSignProof,
-        uint256 priceT,
-        uint256 priceTIndex,
         bytes _priceTProof,
-        uint256 priceS,
-        uint256 priceSIndex,
         bytes _priceSProof,
-        bytes _sigs
+        bytes _sigs,
+        uint256 [] inputs, //        uint256 orderVolume,         uint256 priceT,         uint256 priceS,
+        uint256 [] indexes //        uint256 _orderPos,        uint256 priceTIndex,        uint256 priceSIndex,
     )
         public payable
     {
-        uint256 blknum = _orderPos / 1000000000;
-        uint256 txindex = (_orderPos % 1000000000) / 10000;
-
-        // Check the sender owns order.
-        var exitingOrder = _orderBytes.createExitingOrder();
-        require(msg.sender == exitingOrder.exitor);
-
         // require that exit is after a chain reset
-        require( _orderPos < chainReset || chainReset ==0);
+        require( indexes[0] < chainReset || chainReset ==0);
 
 
         //Check that order is in block:
-        bytes32 root = childChain[blknum].root; 
-        bytes32 txHash = keccak256(_orderBytes);
-        bytes32 merkleHash = keccak256(abi.encodePacked(txHash, _sigs));
-        require(merkleHash.checkMembership(txindex, root, _orderProof));
+        uint256 blknum = indexes[0] / 1000000000;
+        uint256 txindex = (indexes[0] % 1000000000) / 10000;
+        bytes32 merkleHash = keccak256(abi.encodePacked(keccak256(_orderBytes), _sigs));
+        require(merkleHash.checkMembership(txindex, childChain[blknum].root, _orderProof));
         
         // Check supplied price
-        require(bytes32(priceT).checkMembership(priceTIndex, childChain[blknum+2].root, _priceTProof));
-        require(bytes32(priceS).checkMembership(priceSIndex, childChain[blknum+2].root, _priceSProof));
+        require(bytes32(inputs[1]).checkMembership(indexes[1], childChain[blknum+2].root, _priceTProof));
+        require(bytes32(inputs[2]).checkMembership(indexes[2], childChain[blknum+2].root, _priceSProof));
 
         // Check double sign
-        require(Validate.checkSigs(keccak256(_orderBytes), root, _sigs));
+        require(Validate.checkSigs(keccak256(_orderBytes), childChain[blknum].root, 0, _sigs));
 
         // if double sig block is not available
-        if(uint(_doubleSig)==0){
+        if(_doubleSig.length==0){
             //bitmap needs to be already be provided
-            require(ASbitmap[blknum]>0);
+            require(ASbitmap[blknum][txindex]>0);
             require(bitmapHasOneAtSpot(txindex,ASbitmap[blknum]));
         }
         else{
             //proof that signature is in block:
             // proof that the signature is valid
-            bytes32 doubleSignMessage = keccak256(abi.encodePacked(_orderBytes,childChain[blknum].root));
-            require(Validate.checkSigs(doubleSignMessage, childChain[blknum+1].root, _doubleSig));
+            require(Validate.checkSigs(keccak256(abi.encodePacked(_orderBytes,childChain[blknum].root)), childChain[blknum+1].root, 0,_doubleSig));
             //proof that signature is in block
-            bytes32 merkleHash = keccak256(abi.encodePacked(txHash, _doubleSig));
-            require(merkleHash.checkMembership(priceSIndex, childChain[blknum+2].root, _priceSProof));
-        }
+            bytes32 merkleHash2 = keccak256(abi.encodePacked(keccak256(_orderBytes), _doubleSig));
+            require(merkleHash2.checkMembership(indexes[2], childChain[blknum+2].root, _priceSProof));
+        }        
+        startExitOrderPart2(_orderBytes, inputs, indexes, _volumeProof);
+    }
+
+    function startExitOrderPart2(
+        bytes _orderBytes,
+        uint256 [] inputs,
+        uint256 [] indexes,
+        bytes _volumeProof
+    ) 
+    internal {
+        uint256 blknum = indexes[0] / 1000000000;
+        // Check the sender owns order.
+        ExitingOrder memory exitingOrder = createExitingOrder(_orderBytes);
+        require(msg.sender == exitingOrder.exitor);
 
         // process volumes
-        if(orderVolumeKnown){
-            require(bytes32(orderVolume).checkMembership(orderIndex+262144, childChain[blknum+1].root, _volumeProof));
+        if(inputs[0]==0){
+            require(bytes32(inputs[0]).checkMembership(indexes[0]+262144, childChain[blknum+1].root, _volumeProof));
             // if order was touched
-            if(priceT <= exitingOrder.limitPrice * priceS)
-                addExitToQueue(_orderPos, exitingOrder.exitor, exitingOrder.targetToken, orderVolume * priceT/priceS, childChain[blknum].timestamp);
-                if(orderVolume!=exitingOrder.amount){
-                    addExitToQueue(_orderPos, exitingOrder.exitor, exitingOrder.sourceToken, (exitingOrder.amount - orderVolume), childChain[blknum].timestamp); 
+            if(inputs[1] <= exitingOrder.limitPrice * inputs[2])
+                addExitToQueue(indexes[0], exitingOrder.exitor, exitingOrder.targetToken, inputs[0] * inputs[1]/inputs[2], childChain[blknum].timestamp);
+                if(inputs[0]!=exitingOrder.amount){
+                    addExitToQueue(indexes[0], exitingOrder.exitor, exitingOrder.sourceToken, (exitingOrder.amount - inputs[0]), childChain[blknum].timestamp); 
                 }
             // if order was not touched:
             else{
-               addExitToQueue(_orderPos, exitingOrder.exitor, exitingOrder.sourceToken, exitingOrder.amount, childChain[blknum].timestamp);
+               addExitToQueue(indexes[0], exitingOrder.exitor, exitingOrder.sourceToken, exitingOrder.amount, childChain[blknum].timestamp);
             }
         }else{
             //Append to list of reqests.
             require(msg.value>= BOND_FOR_VOLUME_REQUEST);
             //TODO
             //addToVolumeRequests( _utxoPos, _orderBytes, orderIndex, blknum+1);
-            emit VolumeRequest( _orderPos, _orderBytes, orderIndex, blknum+1);
+            emit VolumeRequest( indexes[0], _orderBytes, indexes[0], blknum+1);
         }
-        
     }
 
 
@@ -537,7 +547,6 @@ contract Plasma {
      * @dev Anyone can provde the volume, if the exits request could not provide the trading volume
      * @param queueNr unique reference for the exit
      * @param volume supplied for the exit
-     * @param _proof Proof of the volume, that it fits to the provided submitted VolumeHash.
      */
 
     function provideVolumeForOrderInputExit(
@@ -589,7 +598,7 @@ contract Plasma {
      * @param _token Asset type to be exited.
      * @return A tuple of the position and time when this exit can be processed.
      */
-    function getNextExit(address _token)
+    function getNextExit(uint _token)
         public
         view
         returns (uint256, uint256)
@@ -601,7 +610,7 @@ contract Plasma {
      * @dev Processes any exits that have completed the challenge period. 
      * @param _token Token type to process.
      */
-    function finalizeExits(address _token)
+    function finalizeExits(uint _token)
         public
     {
         uint256 utxoPos;
@@ -611,10 +620,6 @@ contract Plasma {
         Exit memory currentExit = exits[utxoPos];
         while (exitableAt < block.timestamp) {
             currentExit = exits[utxoPos];
-
-            // FIXME: handle ERC-20 transfer
-            require(address(0) == _token);
-
             require(Token(_token).transfer(currentExit.owner, currentExit.amount));
             queue.delMin();
             delete exits[utxoPos].owner;
@@ -665,7 +670,7 @@ contract Plasma {
     function getExit(uint256 _utxoPos)
         public
         view
-        returns (address, address, uint256)
+        returns (address, uint256, uint256)
     {
         return (exits[_utxoPos].owner, exits[_utxoPos].token, exits[_utxoPos].amount);
     }
@@ -686,7 +691,7 @@ contract Plasma {
     function addExitToQueue(
         uint256 _utxoPos,
         address _exitor,
-        address _token,
+        uint _token,
         uint256 _amount,
         uint256 _created_at
     )
@@ -716,5 +721,56 @@ contract Plasma {
     function bitmapHasOneAtSpot(uint index, bytes bitmap)
     public view returns(bool){
         return bitmap[index]==1;
+    }
+
+    function getUtxoPos(bytes memory challengingTxBytes, uint256 oIndex)
+        internal
+        constant
+        returns (uint256)
+    {
+        var txList = RLP.toList(RLP.toRlpItem(challengingTxBytes));
+        uint256 oIndexShift = oIndex * 3;
+        return
+            RLP.toUint(txList[0 + oIndexShift]) +
+            RLP.toUint(txList[1 + oIndexShift]) +
+            RLP.toUint(txList[2 + oIndexShift]);
+    }
+
+    function createExitingTx(bytes memory exitingTxBytes, uint256 oindex)
+        internal
+        constant
+        returns (ExitingTx)
+    {
+        var txList = RLP.toList(RLP.toRlpItem(exitingTxBytes));
+        return ExitingTx({
+            exitor: RLP.toAddress(txList[7 + 2 * oindex]),
+            token: RLP.toUint(txList[6]),
+            amount: RLP.toUint(txList[8 + 2 * oindex]),
+            inputCount: RLP.toUint(txList[0]) * RLP.toUint(txList[3])
+        });
+    }
+
+    function createExitingOrder(bytes memory exitingOrderBytes)
+        internal
+        constant
+        returns (ExitingOrder)
+    {
+        var txList = RLP.toList(RLP.toRlpItem(exitingOrderBytes));
+        uint skeleton = RLP.toUint(txList[0]);
+        uint _amount = skeleton%(1329227995784915872903807060280344576); //2**120
+        skeleton = skeleton/ 1329227995784915872903807060280344576;
+        uint _sourceToken = skeleton%8;
+        skeleton = skeleton / 8;
+        uint _targetToken = skeleton%8;
+        skeleton = skeleton / 8;
+        uint _limitPrice = skeleton;
+        return ExitingOrder({
+            exitor: RLP.toAddress(txList[1]),
+            targetToken:_targetToken,
+            sourceToken: _sourceToken,
+            amount: _amount,
+            limitPrice: _limitPrice,
+            utxo: RLP.toBytes(txList[2])
+        });
     }
 }

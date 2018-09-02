@@ -9,7 +9,7 @@ import "./ECRecovery.sol";
  * @dev Checks that the signatures on a transaction are valid
  */
 library Validate {
-    function checkSigs(bytes32 txHash, bytes32 rootHash, uint256 blknum2, bytes sigs)
+    function checkSigs(bytes32 txHash, bytes32 rootHash, uint256 inputCount, bytes sigs)
         internal
         view
         returns (bool)
@@ -18,13 +18,13 @@ library Validate {
         bytes memory sig1 = ByteUtils.slice(sigs, 0, 65);
         bytes memory sig2 = ByteUtils.slice(sigs, 65, 65);
         bytes memory confSig1 = ByteUtils.slice(sigs, 130, 65);
-        bytes32 confirmationHash = keccak256(txHash, rootHash);
+        bytes32 confirmationHash = keccak256(abi.encodePacked(txHash, rootHash));
 
         bool check1 = true;
         bool check2 = true;
 
         check1 = ECRecovery.recover(txHash, sig1) == ECRecovery.recover(confirmationHash, confSig1);
-        if (blknum2 > 0) {
+        if (inputCount > 0) {
             bytes memory confSig2 = ByteUtils.slice(sigs, 195, 65);
             check2 = ECRecovery.recover(txHash, sig2) == ECRecovery.recover(confirmationHash, confSig2);
         }

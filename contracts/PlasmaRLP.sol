@@ -5,20 +5,20 @@ import "./RLP.sol";
 
 library PlasmaRLP {
 
-    struct exitingTx {
+    struct ExitingTx {
         address exitor;
         uint256 token;
         uint256 amount;
         uint256 inputCount;
     }
 
-    struct exitingOrder {
+    struct ExitingOrder {
         address exitor;
         uint256 targetToken;
         uint256 sourceToken;
         uint256 amount;
         uint256 limitPrice;
-        bytes32 UTXO;
+        bytes utxo;
     }
     /* Public Functions */
 
@@ -38,10 +38,10 @@ library PlasmaRLP {
     function createExitingTx(bytes memory exitingTxBytes, uint256 oindex)
         internal
         constant
-        returns (exitingTx)
+        returns (ExitingTx)
     {
         var txList = RLP.toList(RLP.toRlpItem(exitingTxBytes));
-        return exitingTx({
+        return ExitingTx({
             exitor: RLP.toAddress(txList[7 + 2 * oindex]),
             token: RLP.toUint(txList[6]),
             amount: RLP.toUint(txList[8 + 2 * oindex]),
@@ -52,23 +52,23 @@ library PlasmaRLP {
     function createExitingOrder(bytes memory exitingOrderBytes)
         internal
         constant
-        returns (exitingOrder)
+        returns (ExitingOrder)
     {
         var txList = RLP.toList(RLP.toRlpItem(exitingOrderBytes));
-        bytes32 skeleton = RLP.toBytes(txList[0]);
-        uint _amount = skeleton% 1329227995784915872903807060280344576; //2**120
+        uint skeleton = RLP.toUint(txList[0]);
+        uint _amount = skeleton%(1329227995784915872903807060280344576); //2**120
         skeleton = skeleton/ 1329227995784915872903807060280344576;
         uint _sourceToken = skeleton%8;
         skeleton = skeleton / 8;
         uint _targetToken = skeleton%8;
         skeleton = skeleton / 8;
         uint _limitPrice = skeleton;
-        return exitingOrder({
-            sourceToken: _sourceToken,
+        return ExitingOrder({
+            exitor: RLP.toAddress(txList[1]),
             targetToken:_targetToken,
+            sourceToken: _sourceToken,
             amount: _amount,
             limitPrice: _limitPrice,
-            exitor: RLP.toAddress(txList[1]),
             utxo: RLP.toBytes(txList[2])
         });
     }
