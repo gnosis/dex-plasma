@@ -142,7 +142,7 @@ contract Plasma {
         currentFeeExit = 1;
         // Support only ETH on deployment; other tokens need
         // to be added explicitly.
-        listedTokens[0] = WETH;
+        listedTokens.push(WETH);
         exitsQueues[0] = address(new PriorityQueue());
     }
 
