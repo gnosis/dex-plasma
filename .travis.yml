@@ -9,7 +9,7 @@ before_install:
   - npm install -g ganache-cli
 install:
   - npm install
-  - truffle install
+  - truffle install bytes
 before_script:
   - ganache-cli --defaultBalanceEther 500000000 > /dev/null &
   - sleep 5
