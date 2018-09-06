@@ -32,23 +32,23 @@ contract Plasma {
         address indexed depositor,
         uint256 indexed depositBlock,
         address token,
-        uint256 amount,
+        uint256 amount
     );
 
     event ExitStarted(
         address indexed exitor,
         uint256 indexed utxoPos,
         uint256 token,
-        uint256 amount,
+        uint256 amount
     );
 
     event BlockSubmitted(
         bytes32 root,
-        uint256 timestamp,
+        uint256 timestamp
     );
 
     event TokenAdded(
-        address token,
+        address token
     );
 
     event VolumeRequest(
@@ -298,7 +298,7 @@ contract Plasma {
         uint256 _utxoPos,
         bytes _txBytes,
         bytes _proof,
-        bytes _sigs,
+        bytes _sigs
     )
         public
     {
@@ -337,7 +337,7 @@ contract Plasma {
         bytes _txBytes,
         bytes _proof,
         bytes _sigs,
-        bytes _confirmationSig,
+        bytes _confirmationSig
     )
         public
     {
@@ -374,7 +374,7 @@ contract Plasma {
         bytes _txBytes,
         bytes _proof,
         bytes _sigs,
-        bytes _confirmationSig,
+        bytes _confirmationSig
     )
         public
     {
@@ -407,7 +407,7 @@ contract Plasma {
         bytes _priceSProof,
         bytes _sigs,
         uint256 [] inputs, // uint256 orderVolume, uint256 priceT, uint256 priceS,
-        uint256 [] indexes, // uint256 _orderPos, uint256 priceTIndex, uint256 priceSIndex,
+        uint256 [] indexes // uint256 _orderPos, uint256 priceTIndex, uint256 priceSIndex,
     )
         public payable
     {
@@ -489,7 +489,7 @@ contract Plasma {
         uint256 _utxoPos,
         bytes _orderBytes,
         uint256 orderIndex,
-        uint blockNumber,
+        uint blockNumber
     )
         public
     {
@@ -528,7 +528,7 @@ contract Plasma {
         uint blockNr,
         uint indexOfIncorrectSig,
         bytes merkleProof,
-        bytes signature,
+        bytes signature
     )
         public 
     {
@@ -695,7 +695,7 @@ contract Plasma {
         address _exitor,
         uint _token,
         uint256 _amount,
-        uint256 _created_at,
+        uint256 _created_at
     )
         private
     {
