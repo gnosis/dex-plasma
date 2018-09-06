@@ -7,7 +7,8 @@
     "test": "test"
   },
   "scripts": {
-    "test": "truffle test"
+    "test": "truffle test",
+    "coverage": "./node_modules/.bin/solidity-coverage"
   },
   "repository": {
     "type": "git",
@@ -21,7 +22,8 @@
   "homepage": "https://github.com/gnosis/dex-contracts#readme",
   "dependencies": {
     "@gnosis.pm/util-contracts": "^1.0.1",
-    "eslint-plugin-react": "^7.11.1"
+    "eslint-plugin-react": "^7.11.1",
+    "openzeppelin-solidity": "^1.12.0"
   },
   "devDependencies": {
     "@digix/tempo": "^0.2.0",
