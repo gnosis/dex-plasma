@@ -5,7 +5,9 @@ language: node_js
 node_js:
   - '8'
 before_install:
+  - rm -rf build
   - rm -rf node_modules
+  - rm -rf installed_contracts
   - npm install -g ganache-cli
 install:
   - npm install
