@@ -1,5 +1,8 @@
-/build/*
-/node_modules/*
-/installed_contracts/*
+build/*
+coverage*
+coverage/*
+installed_contracts/*
+node_modules/*
+
 
 .DS_Store
