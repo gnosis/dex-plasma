@@ -1,12 +1,14 @@
 pragma solidity ^0.4.0;
 
-import "./SafeMath.sol";
-import "./Math.sol";
-//import "./PlasmaRLP.sol";
-import "./RLP.sol";
-import "./Merkle.sol";
+import "openzeppelin-solidity/contracts/math/SafeMath.sol";
+import "openzeppelin-solidity/contracts/math/Math.sol";
+
+import "./utils/RLP.sol";
+import "./utils/Merkle.sol";
+import "./utils/PriorityQueue.sol";
+
 import "./Validate.sol";
-import "./PriorityQueue.sol";
+
 import "@gnosis.pm/util-contracts/contracts/Token.sol";
 
 
@@ -20,6 +22,7 @@ import "@gnosis.pm/util-contracts/contracts/Token.sol";
 contract Plasma {
     using SafeMath for uint256;
     using Merkle for bytes32;
+    using Math for uint256;
 
 
 
@@ -328,7 +331,7 @@ contract Plasma {
 
         // Check the transaction was included in the chain and is correctly signed.
         bytes32 root = childChain[blknum].root; 
-        bytes32 merkleHash = keccak256(abi.encodePacked(keccak256(_txBytes), ByteUtils.slice(_sigs, 0, 130)));
+        bytes32 merkleHash = keccak256(abi.encodePacked(keccak256(_txBytes), BytesLib.slice(_sigs, 0, 130)));
         require(Validate.checkSigs(keccak256(_txBytes), root, exitingTx.inputCount, _sigs));
         require(merkleHash.checkMembership(txindex, root, _proof));
 
@@ -705,7 +708,7 @@ contract Plasma {
         require(exits[_utxoPos].amount == 0);
 
         // Calculate priority.
-        uint256 exitableAt = Math.max(_created_at + 2 weeks, block.timestamp + 1 weeks);
+        uint256 exitableAt = (_created_at.add(2 weeks)).max256(block.timestamp.add(1 weeks));
         PriorityQueue queue = PriorityQueue(exitsQueues[_token]);
         queue.insert(exitableAt, _utxoPos);
 

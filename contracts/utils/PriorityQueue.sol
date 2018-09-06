@@ -1,7 +1,6 @@
 pragma solidity ^0.4.0;
 
-import "./SafeMath.sol";
-
+import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 /**
  * @title PriorityQueue
@@ -10,39 +9,20 @@ import "./SafeMath.sol";
 contract PriorityQueue {
     using SafeMath for uint256;
 
-    /* 
-     *  Storage
-     */
-
     address owner;
     uint256[] heapList;
     uint256 public currentSize;
-
-
-    /*
-     *  Modifiers
-     */
 
     modifier onlyOwner() {
         require(msg.sender == owner);
         _;
     }
 
-
-    /*
-     * Constructor
-     */
-
     constructor() public {
         owner = msg.sender;
         heapList = [0];
         currentSize = 0;
     }
-
-
-    /*
-     * Internal functions
-     */
 
     /**
      * @dev Inserts an element into the priority queue.
