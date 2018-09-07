@@ -28,12 +28,12 @@ library Merkle {
         }
         return computedHash == rootHash;
     }
-    
+
     function checkMembership(bytes32 leaf, uint256 index, bytes32 rootHash, bytes proof, uint height)
         internal
         pure
         returns (bool)
-    {
+    {   
         require(proof.length == height*32);
         bytes32 proofElement;
         bytes32 computedHash = leaf;
