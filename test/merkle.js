@@ -5,11 +5,7 @@ const { sha3 } = require('ethereumjs-util')
 
 let {
     assertRejects,
-    catchError,
-    toHex,
-    fastForward,
-    proofForDepositBlock,
-    zeroHashes
+    toHex
 } = require('./utilities.js');
 
 

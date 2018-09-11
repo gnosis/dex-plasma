@@ -7,7 +7,6 @@ const Plasma = artifacts.require("Plasma.sol")
 var etherToken
 var plasma
 
-// const c1 = () =>
 contract('Plasma', (accounts) => {
   const [operator, depositor] = accounts
 

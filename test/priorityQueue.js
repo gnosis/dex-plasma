@@ -1,12 +1,6 @@
 let PriorityQueue = artifacts.require("PriorityQueue");
 
-let {
-    catchError,
-    toHex,
-    fastForward,
-    proofForDepositBlock,
-    zeroHashes
-} = require('./utilities.js');
+let { catchError } = require('./utilities.js');
 
 contract('PriorityQueue', async (accounts) => {
     let instance;
