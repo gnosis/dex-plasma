@@ -1,4 +1,4 @@
-const MerkleMock = artifacts.require("MerkleMock");
+const MerkleWrapper = artifacts.require("MerkleWrapper");
 
 const MerkleTree = require('merkletreejs');
 const { sha3 } = require('ethereumjs-util')
@@ -16,7 +16,7 @@ let {
 contract('Merkle', (accounts) => {
 
   before(async () => {
-    merkle = await MerkleMock.new();
+    merkle = await MerkleWrapper.new();
   })
 
 describe('Height 2 "all" permutations', function () {
