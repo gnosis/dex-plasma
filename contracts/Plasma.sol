@@ -317,7 +317,7 @@ contract Plasma {
         bytes32 root = childChain[blknum].root; 
         bytes32 merkleHash = keccak256(abi.encodePacked(keccak256(_txBytes), BytesLib.slice(_sigs, 0, 130)));
         require(Validate.checkSigs(keccak256(_txBytes), root, exitingTx.inputCount, _sigs));
-        require(merkleHash.checkMembership(txindex, root, _proof));
+        require(merkleHash.checkMembership(txindex, root, _proof, 16));
 
         addExitToQueue(_utxoPos, exitingTx.exitor, exitingTx.token, exitingTx.amount, childChain[blknum].timestamp);
     }
@@ -353,7 +353,7 @@ contract Plasma {
 
         // Validate the spending transaction.
         require(owner == ECRecovery.recover(confirmationHash, _confirmationSig));
-        require(merkleHash.checkMembership(txindex, root, _proof));
+        require(merkleHash.checkMembership(txindex, root, _proof, 16));
 
         // Delete the owner but keep the amount to prevent another exit.
         delete exits[eUtxoPos].owner;
@@ -388,7 +388,7 @@ contract Plasma {
 
         // Validate the spending transaction.
         require(owner == ECRecovery.recover(confirmationHash, _confirmationSig));
-        require(merkleHash.checkMembership(txindex, root, _proof));
+        require(merkleHash.checkMembership(txindex, root, _proof, 16));
 
         // Delete the owner but keep the amount to prevent another exit.
         delete exits[eUtxoPos].owner;
@@ -419,11 +419,11 @@ contract Plasma {
         uint256 blknum = indexes[0] / 1000000000;
         uint256 txindex = (indexes[0] % 1000000000) / 10000;
         bytes32 merkleHash = keccak256(abi.encodePacked(keccak256(_orderBytes), _sigs));
-        require(merkleHash.checkMembership(txindex, childChain[blknum].root, _orderProof));
+        require(merkleHash.checkMembership(txindex, childChain[blknum].root, _orderProof, 16));
         
         // Check supplied price
-        require(bytes32(inputs[1]).checkMembership(indexes[1], childChain[blknum+2].root, _priceTProof));
-        require(bytes32(inputs[2]).checkMembership(indexes[2], childChain[blknum+2].root, _priceSProof));
+        require(bytes32(inputs[1]).checkMembership(indexes[1], childChain[blknum+2].root, _priceTProof, 16));
+        require(bytes32(inputs[2]).checkMembership(indexes[2], childChain[blknum+2].root, _priceSProof, 16));
 
         // Check double sign
         require(Validate.checkSigs(keccak256(_orderBytes), childChain[blknum].root, 0, _sigs));
@@ -445,7 +445,7 @@ contract Plasma {
             );
             // proof that signature is in block
             bytes32 merkleHash2 = keccak256(abi.encodePacked(keccak256(_orderBytes), _doubleSig));
-            require(merkleHash2.checkMembership(indexes[2], childChain[blknum+2].root, _priceSProof));
+            require(merkleHash2.checkMembership(indexes[2], childChain[blknum+2].root, _priceSProof, 16));
         }        
         startExitOrderPart2(_orderBytes, inputs, indexes, _volumeProof);
     }
@@ -465,7 +465,7 @@ contract Plasma {
 
         // process volumes
         if(inputs[0]==0) {
-            require(bytes32(inputs[0]).checkMembership(indexes[0] + 262144, childChain[blknum+1].root, _volumeProof));
+            require(bytes32(inputs[0]).checkMembership(indexes[0] + 262144, childChain[blknum+1].root, _volumeProof, 16));
             // if order was touched
             if(inputs[1] <= exitingOrder.limitPrice * inputs[2])
                 addExitToQueue(indexes[0], exitingOrder.exitor, exitingOrder.targetToken, inputs[0] * inputs[1] / inputs[2], childChain[blknum].timestamp);
@@ -585,7 +585,7 @@ contract Plasma {
 
         // Validate the spending transaction.
         require(owner == ECRecovery.recover(confirmationHash, _confirmationSig));
-        require(merkleHash.checkMembership(txindex, childChain[blknum].root, _proof));
+        require(merkleHash.checkMembership(txindex, childChain[blknum].root, _proof, 16));
 
         // Delete the owner but keep the amount to prevent another exit.
         delete exits[_eUtxoIndex].owner;
