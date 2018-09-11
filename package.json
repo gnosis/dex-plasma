@@ -23,7 +23,9 @@
   "dependencies": {
     "@gnosis.pm/util-contracts": "^1.0.1",
     "eslint-plugin-react": "^7.11.1",
-    "openzeppelin-solidity": "^1.12.0"
+    "merkletreejs": "0.0.10",
+    "openzeppelin-solidity": "^1.12.0",
+    "solidity-rlp": "^1.0.0"
   },
   "devDependencies": {
     "@digix/tempo": "^0.2.0",

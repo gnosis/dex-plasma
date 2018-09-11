@@ -7,8 +7,7 @@ const Plasma = artifacts.require("Plasma.sol")
 var etherToken
 var plasma
 
-// const c1 = () =>
-contract('Plasma - DepositTests', (accounts) => {
+contract('Plasma', (accounts) => {
   const [operator, depositor] = accounts
 
   before(async () => {
@@ -17,14 +16,14 @@ contract('Plasma - DepositTests', (accounts) => {
   })
 
 
-  describe('Preparing deposit with WETH', () => {
+  describe('Deposit Tests', () => {
     before(async () => {
     })
 
     after(async () => {
     })
 
-    it('step 1 - Wraps Ether', async () => {
+    it('step 1 - Wrap Ether', async () => {
       // ASSERT Auction has started
       
       await etherToken.deposit({from: depositor, value: ether});
