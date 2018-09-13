@@ -19,9 +19,9 @@ import "@gnosis.pm/util-contracts/contracts/Token.sol";
  * @dev This contract secures a utxo payments plasma child chain to ethereum.
  */
 contract Plasma {
-    using SafeMath for uint256;
+    using SafeMath for uint;
     using Merkle for bytes32;
-    using Math for uint256;
+    using Math for uint;
 
     /*
      * Events
@@ -29,21 +29,21 @@ contract Plasma {
 
     event Deposit(
         address indexed depositor,
-        uint256 indexed depositBlock,
+        uint indexed depositBlock,
         address token,
-        uint256 amount
+        uint amount
     );
 
     event ExitStarted(
         address indexed exitor,
-        uint256 indexed utxoPos,
-        uint256 token,
-        uint256 amount
+        uint indexed utxoPos,
+        uint token,
+        uint amount
     );
 
     event BlockSubmitted(
         bytes32 root,
-        uint256 timestamp
+        uint timestamp
     );
 
     event TokenAdded(
@@ -51,10 +51,10 @@ contract Plasma {
     );
 
     event VolumeRequest(
-        uint256 _utxoPos,
+        uint _utxoPos,
         bytes _orderBytes,
-        uint256 orderIndex,
-        uint256 blockNumber
+        uint orderIndex,
+        uint blockNumber
     );
 
     /*
@@ -63,42 +63,42 @@ contract Plasma {
      // same structs as in library, bad practice
     struct ExitingTx {
         address exitor;
-        uint256 token;
-        uint256 amount;
-        uint256 inputCount;
+        uint token;
+        uint amount;
+        uint inputCount;
     }
 
     struct ExitingOrder {
         address exitor;
-        uint256 targetToken;
-        uint256 sourceToken;
-        uint256 amount;
-        uint256 limitPrice;
+        uint targetToken;
+        uint sourceToken;
+        uint amount;
+        uint limitPrice;
         bytes utxo;
     }
 
-    uint256 public constant CHILD_BLOCK_INTERVAL = 1000;
-    uint256 public constant BOND_FOR_VOLUME_REQUEST  = 100000000000;
+    uint public constant CHILD_BLOCK_INTERVAL = 1000;
+    uint public constant BOND_FOR_VOLUME_REQUEST  = 100000000000;
 
     address public operator;
 
-    uint256 public currentChildBlock;
-    uint256 public currentDepositBlock;
-    uint256 public currentFeeExit;
+    uint public currentChildBlock;
+    uint public currentDepositBlock;
+    uint public currentFeeExit;
     // the chain can be reset to a certain blockheight, when the operator does not provide any data. 
     // chainRest = 0 equals to no chain reset
-    uint256 public chainReset =0;
+    uint public chainReset = 0;
 
-    mapping (uint256 => ChildBlock) public childChain;
-    mapping (uint256 => Exit) public exits;
+    mapping (uint => ChildBlock) public childChain;
+    mapping (uint => Exit) public exits;
 
     address[] public listedTokens;
-    mapping (uint256 => address) public exitsQueues;
+    mapping (uint => address) public exitsQueues;
 
     struct Exit {
         address owner;
-        uint256 token;
-        uint256 amount;
+        uint token;
+        uint amount;
     }
 
     enum BlockType {
@@ -112,7 +112,7 @@ contract Plasma {
 
     struct ChildBlock {
         bytes32 root;
-        uint256 timestamp;
+        uint timestamp;
         BlockType blockType; 
     }
 
@@ -250,7 +250,7 @@ contract Plasma {
     /**
      * @dev Allows anyone to deposit funds into the Plasma chain.
      */
-    function deposit(uint256 amount, uint256 tokenNr) public {
+    function deposit(uint amount, uint tokenNr) public {
         Token token = Token(listedTokens[tokenNr]);
         // Only allow up to CHILD_BLOCK_INTERVAL deposits per child block.
         require(
@@ -265,7 +265,7 @@ contract Plasma {
 
 
         bytes32 root = keccak256(abi.encodePacked(msg.sender, token, amount));
-        uint256 depositBlock = getDepositBlock();
+        uint depositBlock = getDepositBlock();
         childChain[depositBlock] = ChildBlock({
             root: root,
             timestamp: block.timestamp,
@@ -283,13 +283,13 @@ contract Plasma {
      * @param _amount Deposit amount.
      */
     function startDepositExit(
-        uint256 _depositPos,
-        uint256 _token, 
-        uint256 _amount
+        uint _depositPos,
+        uint _token, 
+        uint _amount
     )
         public
     {
-        uint256 blknum = _depositPos / 1000000000;
+        uint blknum = _depositPos / 1000000000;
 
         require(
             blknum % CHILD_BLOCK_INTERVAL != 0,
@@ -316,16 +316,16 @@ contract Plasma {
      * @param _sigs Both transaction signatures and confirmations signatures used to verify that the exiting transaction has been confirmed.
      */
     function startTransactionExit(
-        uint256 _utxoPos,
+        uint _utxoPos,
         bytes _txBytes,
         bytes _proof,
         bytes _sigs
     )
         public
     {
-        uint256 blknum = _utxoPos / 1000000000;
-        uint256 txindex = (_utxoPos % 1000000000) / 10000;
-        uint256 oindex = _utxoPos - blknum * 1000000000 - txindex * 10000; 
+        uint blknum = _utxoPos / 1000000000;
+        uint txindex = (_utxoPos % 1000000000) / 10000;
+        uint oindex = _utxoPos - blknum * 1000000000 - txindex * 10000; 
 
         require(
             _utxoPos < chainReset || chainReset == 0,
@@ -364,8 +364,8 @@ contract Plasma {
      * @param _confirmationSig The confirmation signature for the transaction used to challenge.
      */
     function challengeTransactionExitWithTransaction(
-        uint256 _cUtxoPos,
-        uint256 _eUtxoIndex,
+        uint _cUtxoPos,
+        uint _eUtxoIndex,
         bytes _txBytes,
         bytes _proof,
         bytes _sigs,
@@ -373,8 +373,8 @@ contract Plasma {
     )
         public
     {
-        uint256 eUtxoPos = getUtxoPos(_txBytes, _eUtxoIndex);
-        uint256 txindex = (_cUtxoPos % 1000000000) / 10000;
+        uint eUtxoPos = getUtxoPos(_txBytes, _eUtxoIndex);
+        uint txindex = (_cUtxoPos % 1000000000) / 10000;
 
         bytes32 root = childChain[_cUtxoPos / 1000000000].root;
         bytes32 txHash = keccak256(_txBytes);
@@ -408,8 +408,8 @@ contract Plasma {
      * @param _confirmationSig The confirmation signature for the transaction used to challenge.
      */
     function challengeTransactionExitWithOrder(
-        uint256 _cUtxoPos,
-        uint256 _eUtxoIndex,
+        uint _cUtxoPos,
+        uint _eUtxoIndex,
         bytes _txBytes,
         bytes _proof,
         bytes _sigs,
@@ -417,8 +417,8 @@ contract Plasma {
     )
         public
     {
-        uint256 eUtxoPos = getUtxoPos(_txBytes, _eUtxoIndex);
-        uint256 txindex = (_cUtxoPos % 1000000000) / 10000;
+        uint eUtxoPos = getUtxoPos(_txBytes, _eUtxoIndex);
+        uint txindex = (_cUtxoPos % 1000000000) / 10000;
         bytes32 root = childChain[_cUtxoPos / 1000000000].root;
         bytes32 txHash = keccak256(_txBytes);
         bytes32 confirmationHash = keccak256(abi.encodePacked(txHash, root));
@@ -451,8 +451,8 @@ contract Plasma {
         bytes _priceTProof,
         bytes _priceSProof,
         bytes _sigs,
-        uint256[] inputs, // uint256 orderVolume, uint256 priceT, uint256 priceS,
-        uint256[] indexes // uint256 _orderPos, uint256 priceTIndex, uint256 priceSIndex,
+        uint[] inputs, // uint orderVolume, uint priceT, uint priceS,
+        uint[] indexes // uint _orderPos, uint priceTIndex, uint priceSIndex,
     )
         public payable
     {
@@ -461,8 +461,8 @@ contract Plasma {
             "OrderInput is expired! (i.e. older than chain-reset point)"
         );
 
-        uint256 blknum = indexes[0] / 1000000000;
-        uint256 txindex = (indexes[0] % 1000000000) / 10000;
+        uint blknum = indexes[0] / 1000000000;
+        uint txindex = (indexes[0] % 1000000000) / 10000;
         bytes32 merkleHash = keccak256(abi.encodePacked(keccak256(_orderBytes), _sigs));
         require(
             merkleHash.checkMembership(txindex, childChain[blknum].root, _orderProof, 16),
@@ -508,13 +508,13 @@ contract Plasma {
 
     function startExitOrderPart2(
         bytes _orderBytes,
-        uint256[] inputs,
-        uint256[] indexes,
+        uint[] inputs,
+        uint[] indexes,
         bytes _volumeProof
     ) 
         internal
     {
-        uint256 blknum = indexes[0] / 1000000000;
+        uint blknum = indexes[0] / 1000000000;
         // Check the sender owns order.
         ExitingOrder memory exitingOrder = createExitingOrder(_orderBytes);
         require(
@@ -548,10 +548,10 @@ contract Plasma {
     }
 
     function addToVolumeRequests(
-        uint256 _utxoPos,
+        uint _utxoPos,
         bytes _orderBytes,
-        uint256 orderIndex,
-        uint256 blockNumber
+        uint orderIndex,
+        uint blockNumber
     )
         public
     {
@@ -563,13 +563,13 @@ contract Plasma {
      */
 
     // blockNr => time
-    mapping (uint256 => uint256) ASrequests;
+    mapping (uint => uint) ASrequests;
     // blockNR => bitmap for Aggregated Signature
-    mapping (uint256 => bytes) ASbitmap;
+    mapping (uint => bytes) ASbitmap;
 
     function challengeAggregationSignature(
-        uint256 blockNr,
-        uint256 indexOfIncorrectSig
+        uint blockNr,
+        uint indexOfIncorrectSig
     )
         public 
         payable 
@@ -578,8 +578,8 @@ contract Plasma {
     }
 
     function completeASChallenge(
-        uint256 blockNr,
-        uint256 indexOfIncorrectSig
+        uint blockNr,
+        uint indexOfIncorrectSig
     )
         public
     {
@@ -587,8 +587,8 @@ contract Plasma {
     }
 
     function provideSigForASChallenge(
-        uint256 blockNr,
-        uint256 indexOfIncorrectSig,
+        uint blockNr,
+        uint indexOfIncorrectSig,
         bytes merkleProof,
         bytes signature
     )
@@ -610,8 +610,8 @@ contract Plasma {
      */
 
     function provideVolumeForOrderInputExit(
-        uint256 queueNr,
-        uint256 volume,
+        uint queueNr,
+        uint volume,
         bytes32 volumeProof)
     public {
 
@@ -627,8 +627,8 @@ contract Plasma {
      * @param _confirmationSig The confirmation signature for the transaction used to challenge.
      */
     function challengeOrderInputExit(
-        uint256 _cUtxoPos,
-        uint256 _eUtxoIndex,
+        uint _cUtxoPos,
+        uint _eUtxoIndex,
         bytes _txBytes,
         bytes _proof,
         bytes _sigs,
@@ -636,8 +636,8 @@ contract Plasma {
     )
         public
     {
-        uint256 blknum = _cUtxoPos / 1000000000;
-        uint256 txindex = (_cUtxoPos % 1000000000) / 10000;
+        uint blknum = _cUtxoPos / 1000000000;
+        uint txindex = (_cUtxoPos % 1000000000) / 10000;
 
         bytes32 root = childChain[_cUtxoPos / 1000000000].root;
         bytes32 txHash = keccak256(_txBytes);
@@ -664,10 +664,10 @@ contract Plasma {
      * @param _token Asset type to be exited.
      * @return A tuple of the position and time when this exit can be processed.
      */
-    function getNextExit(uint256 _token)
+    function getNextExit(uint _token)
         public
         view
-        returns (uint256, uint256)
+        returns (uint, uint)
     {
         return PriorityQueue(exitsQueues[_token]).getMin();
     }
@@ -676,11 +676,11 @@ contract Plasma {
      * @dev Processes any exits that have completed the challenge period. 
      * @param _token Token type to process.
      */
-    function finalizeExits(uint256 _token)
+    function finalizeExits(uint _token)
         public
     {
-        uint256 utxoPos;
-        uint256 exitableAt;
+        uint utxoPos;
+        uint exitableAt;
         (exitableAt, utxoPos) = getNextExit(_token);
         PriorityQueue queue = PriorityQueue(exitsQueues[_token]);
         Exit memory currentExit = exits[utxoPos];
@@ -711,15 +711,15 @@ contract Plasma {
      * @param _blockNumber Number of the block to return.
      * @return Child chain block at the specified block number.
      */
-    function getChildChain(uint256 _blockNumber)
+    function getChildChain(uint _blockNumber)
         public
         view
-        returns (bytes32, uint256, uint256)
+        returns (bytes32, uint, uint)
     {
         return (
             childChain[_blockNumber].root, 
             childChain[_blockNumber].timestamp, 
-            uint256(childChain[_blockNumber].blockType)
+            uint(childChain[_blockNumber].blockType)
         );
     }
 
@@ -727,7 +727,7 @@ contract Plasma {
      * @dev Determines the next deposit block number.
      * @return Block number to be given to the next deposit block.
      */
-    function getDepositBlock() public view returns (uint256) {
+    function getDepositBlock() public view returns (uint) {
         return currentChildBlock.sub(CHILD_BLOCK_INTERVAL).add(currentDepositBlock);
     }
 
@@ -736,10 +736,10 @@ contract Plasma {
      * @param _utxoPos Position of the UTXO in the chain.
      * @return A tuple representing the active exit for the given UTXO.
      */
-    function getExit(uint256 _utxoPos)
+    function getExit(uint _utxoPos)
         public
         view
-        returns (address, uint256, uint256)
+        returns (address, uint, uint)
     {
         return (
             exits[_utxoPos].owner, 
@@ -762,11 +762,11 @@ contract Plasma {
      * @param _createdAt Time when the UTXO was created.
      */
     function addExitToQueue(
-        uint256 _utxoPos,
+        uint _utxoPos,
         address _exitor,
-        uint256 _token,
-        uint256 _amount,
-        uint256 _createdAt
+        uint _token,
+        uint _amount,
+        uint _createdAt
     )
         private
     {
@@ -786,7 +786,7 @@ contract Plasma {
         );
 
         // Calculate priority.
-        uint256 exitableAt = (_createdAt.add(2 weeks)).max256(block.timestamp.add(1 weeks));
+        uint exitableAt = (_createdAt.add(2 weeks)).max256(block.timestamp.add(1 weeks));
         PriorityQueue queue = PriorityQueue(exitsQueues[_token]);
         queue.insert(exitableAt, _utxoPos);
 
@@ -800,7 +800,7 @@ contract Plasma {
     }
 
     function bitmapHasOneAtSpot(
-        uint256 index,
+        uint index,
         bytes bitmap
     ) 
         public view returns (bool) 
@@ -808,17 +808,17 @@ contract Plasma {
         return bitmap[index] == 1;
     }
 
-    function getUtxoPos(bytes memory challengingTxBytes, uint256 oIndex)
+    function getUtxoPos(bytes memory challengingTxBytes, uint oIndex)
         internal
         view
-        returns (uint256)
+        returns (uint)
     {
         var txList = RLPReader.toList(RLPReader.toRlpItem(challengingTxBytes));
-        uint256 oIndexShift = oIndex * 3;
-        return RLPReader.touint256(txList[0 + oIndexShift]) + RLPReader.touint256(txList[1 + oIndexShift]) + RLPReader.touint256(txList[2 + oIndexShift]);
+        uint oIndexShift = oIndex * 3;
+        return RLPReader.touint(txList[0 + oIndexShift]) + RLPReader.touint(txList[1 + oIndexShift]) + RLPReader.touint(txList[2 + oIndexShift]);
     }
 
-    function createExitingTx(bytes memory exitingTxBytes, uint256 oindex)
+    function createExitingTx(bytes memory exitingTxBytes, uint oindex)
         internal
         view
         returns (ExitingTx)
@@ -826,9 +826,9 @@ contract Plasma {
         var txList = RLPReader.toList(RLPReader.toRlpItem(exitingTxBytes));
         return ExitingTx({
             exitor: RLPReader.toAddress(txList[7 + 2 * oindex]),
-            token: RLPReader.touint256(txList[6]),
-            amount: RLPReader.touint256(txList[8 + 2 * oindex]),
-            inputCount: RLPReader.touint256(txList[0]) * RLPReader.touint256(txList[3])
+            token: RLPReader.touint(txList[6]),
+            amount: RLPReader.touint(txList[8 + 2 * oindex]),
+            inputCount: RLPReader.touint(txList[0]) * RLPReader.touint(txList[3])
         });
     }
 
@@ -838,14 +838,14 @@ contract Plasma {
         returns (ExitingOrder)
     {
         var txList = RLPReader.toList(RLPReader.toRlpItem(exitingOrderBytes));
-        uint256 skeleton = RLPReader.touint256(txList[0]);
-        uint256 _amount = skeleton % (1329227995784915872903807060280344576); //2**120
+        uint skeleton = RLPReader.touint(txList[0]);
+        uint _amount = skeleton % (1329227995784915872903807060280344576); //2**120
         skeleton = skeleton / 1329227995784915872903807060280344576;
-        uint256 _sourceToken = skeleton % 8;
+        uint _sourceToken = skeleton % 8;
         skeleton = skeleton / 8;
-        uint256 _targetToken = skeleton % 8;
+        uint _targetToken = skeleton % 8;
         skeleton = skeleton / 8;
-        uint256 _limitPrice = skeleton;
+        uint _limitPrice = skeleton;
         return ExitingOrder({
             exitor: RLPReader.toAddress(txList[1]),
             targetToken:_targetToken,
