@@ -11,14 +11,13 @@ import "./Validate.sol";
 
 import "@gnosis.pm/util-contracts/contracts/Token.sol";
 
-
+// TODO - remove these one by one!
+// solhint-disable not-rely-on-time, func-order, no-empty-blocks, max-line-length, separate-by-one-line-in-contract
 
 /**
  * @title RootChain
  * @dev This contract secures a utxo payments plasma child chain to ethereum.
  */
-
-
 contract Plasma {
     using SafeMath for uint256;
     using Merkle for bytes32;
@@ -55,7 +54,7 @@ contract Plasma {
         uint256 _utxoPos,
         bytes _orderBytes,
         uint256 orderIndex,
-        uint blockNumber
+        uint256 blockNumber
     );
 
     /*
@@ -93,7 +92,7 @@ contract Plasma {
     mapping (uint256 => ChildBlock) public childChain;
     mapping (uint256 => Exit) public exits;
 
-    address [] public listedTokens;
+    address[] public listedTokens;
     mapping (uint256 => address) public exitsQueues;
 
     struct Exit {
@@ -123,7 +122,7 @@ contract Plasma {
      */
 
     modifier onlyOperator() {
-        require(msg.sender == operator);
+        require(msg.sender == operator, "Sender is not Operator!");
         _;
     }
 
@@ -132,14 +131,14 @@ contract Plasma {
      * Constructor
      */
 
-    constructor(address _operator, address WETH) public {
+    constructor (address _operator, address wrappedETH) public {
         operator = _operator;
         currentChildBlock = CHILD_BLOCK_INTERVAL;
         currentDepositBlock = 1;
         currentFeeExit = 1;
         // Support only ETH on deployment; other tokens need
         // to be added explicitly.
-        listedTokens.push(WETH);
+        listedTokens.push(wrappedETH);
         exitsQueues[0] = address(new PriorityQueue());
     }
 
@@ -155,8 +154,11 @@ contract Plasma {
     function submitTransactionBlock(bytes32 _root) public onlyOperator {
 
         //enforcing order of blocks:
-        require(childChain[currentChildBlock.sub( CHILD_BLOCK_INTERVAL)].blockType == BlockType.Transaction
-            || childChain[currentChildBlock.sub(CHILD_BLOCK_INTERVAL)].blockType == BlockType.AuctionResult);
+        require(
+            childChain[currentChildBlock.sub(CHILD_BLOCK_INTERVAL)].blockType == BlockType.Transaction || 
+            childChain[currentChildBlock.sub(CHILD_BLOCK_INTERVAL)].blockType == BlockType.AuctionResult,
+            "Transaction block submitted is wrong order!"
+        );
 
         childChain[currentChildBlock] = ChildBlock({
             root: _root,
@@ -167,7 +169,6 @@ contract Plasma {
         // Update block numbers.
         currentChildBlock = currentChildBlock.add(CHILD_BLOCK_INTERVAL);
         currentDepositBlock = 1;
-
         emit BlockSubmitted(_root, block.timestamp);
     }
 
@@ -178,7 +179,10 @@ contract Plasma {
      */
     function submitOrderBlock(bytes32 _root) public onlyOperator {
         //enforcing order of blocks:
-        require(childChain[currentChildBlock.sub(CHILD_BLOCK_INTERVAL)].blockType == BlockType.Transaction);
+        require(
+            childChain[currentChildBlock.sub(CHILD_BLOCK_INTERVAL)].blockType == BlockType.Transaction, 
+            "Order block must come immediately after Transaction Block"
+        );
         
         // processing block
         childChain[currentChildBlock] = ChildBlock({
@@ -200,7 +204,10 @@ contract Plasma {
      */
     function submitOrderDoubleSignBlock(bytes32 _root) public onlyOperator {
         //enforcing order of blocks:
-        require(childChain[currentChildBlock.sub(CHILD_BLOCK_INTERVAL)].blockType == BlockType.Order);
+        require(
+            childChain[currentChildBlock.sub(CHILD_BLOCK_INTERVAL)].blockType == BlockType.Order,
+            "Double Sig must come immediately after Order Block"
+        );
         
         // processing block
         childChain[currentChildBlock] = ChildBlock({
@@ -222,7 +229,10 @@ contract Plasma {
     function submitAuctionResultBlock(bytes32 _root) public onlyOperator {
 
         // enforcing order of blocks:
-        require(childChain[currentChildBlock.sub(CHILD_BLOCK_INTERVAL)].blockType == BlockType.OrderDoubleSign);
+        require(
+            childChain[currentChildBlock.sub(CHILD_BLOCK_INTERVAL)].blockType == BlockType.OrderDoubleSign,
+            "Auction result block must come immediately after DoubleSig Block"
+        );
 
         childChain[currentChildBlock] = ChildBlock({
             root: _root,
@@ -240,12 +250,18 @@ contract Plasma {
     /**
      * @dev Allows anyone to deposit funds into the Plasma chain.
      */
-    function deposit(uint256 amount, uint tokenNr) public {
+    function deposit(uint256 amount, uint256 tokenNr) public {
         Token token = Token(listedTokens[tokenNr]);
         // Only allow up to CHILD_BLOCK_INTERVAL deposits per child block.
-        require(currentDepositBlock < CHILD_BLOCK_INTERVAL);
+        require(
+            currentDepositBlock < CHILD_BLOCK_INTERVAL,
+            "Too many deposit blocks before next Transaction"
+        );
         
-        require(token.transferFrom(msg.sender, this, amount));
+        require(
+            token.transferFrom(msg.sender, this, amount),
+            "Token transfer failure on deposit()"
+        );
 
 
         bytes32 root = keccak256(abi.encodePacked(msg.sender, token, amount));
@@ -267,21 +283,26 @@ contract Plasma {
      * @param _amount Deposit amount.
      */
     function startDepositExit(
-        uint256 _depositPos, 
-        uint _token, 
+        uint256 _depositPos,
+        uint256 _token, 
         uint256 _amount
     )
         public
     {
         uint256 blknum = _depositPos / 1000000000;
 
-        // Check that the given UTXO is a deposit.
-        require(blknum % CHILD_BLOCK_INTERVAL != 0);
+        require(
+            blknum % CHILD_BLOCK_INTERVAL != 0,
+            "UTXO provided is not a deposit"
+        );
 
         // Validate the given owner and amount.
         bytes32 root = childChain[blknum].root;
         bytes32 depositHash = keccak256(abi.encodePacked(msg.sender, _token, _amount));
-        require(root == depositHash);
+        require(
+            root == depositHash,
+            "Root and depositHash do not match"
+        );
 
         addExitToQueue(_depositPos, msg.sender, _token, _amount, childChain[blknum].timestamp);
     }
@@ -306,18 +327,29 @@ contract Plasma {
         uint256 txindex = (_utxoPos % 1000000000) / 10000;
         uint256 oindex = _utxoPos - blknum * 1000000000 - txindex * 10000; 
 
-        // require that exit is before a chain reset-point, if set
-        require( _utxoPos < chainReset || chainReset ==0);
+        require(
+            _utxoPos < chainReset || chainReset == 0,
+            "UTXO is expired! (i.e. older than chain-reset point)"
+        );
 
-        // Check the sender owns this UTXO.
         ExitingTx memory exitingTx = createExitingTx(_txBytes, oindex);
-        require(msg.sender == exitingTx.exitor);
+        require(
+            msg.sender == exitingTx.exitor,
+            "Sender does not own UTXO"
+        );
 
         // Check the transaction was included in the chain and is correctly signed.
         bytes32 root = childChain[blknum].root; 
         bytes32 merkleHash = keccak256(abi.encodePacked(keccak256(_txBytes), BytesLib.slice(_sigs, 0, 130)));
-        require(Validate.checkSigs(keccak256(_txBytes), root, exitingTx.inputCount, _sigs));
-        require(merkleHash.checkMembership(txindex, root, _proof, 16));
+        require(
+            Validate.checkSigs(keccak256(_txBytes), root, exitingTx.inputCount, _sigs),
+            "Failed Signature check on transaction exit. Bad double signature?"
+        );
+
+        require(
+            merkleHash.checkMembership(txindex, root, _proof, 16),
+            "Failed Merkle Membership check."
+        );
 
         addExitToQueue(_utxoPos, exitingTx.exitor, exitingTx.token, exitingTx.amount, childChain[blknum].timestamp);
     }
@@ -352,8 +384,15 @@ contract Plasma {
         address owner = exits[eUtxoPos].owner;
 
         // Validate the spending transaction.
-        require(owner == ECRecovery.recover(confirmationHash, _confirmationSig));
-        require(merkleHash.checkMembership(txindex, root, _proof, 16));
+        require(
+            owner == ECRecovery.recover(confirmationHash, _confirmationSig),
+            "Challenge failed at ECRecovery"
+        );
+
+        require(
+            merkleHash.checkMembership(txindex, root, _proof, 16),
+            "Challenge failed at Merkle Membership"
+        );
 
         // Delete the owner but keep the amount to prevent another exit.
         delete exits[eUtxoPos].owner;
@@ -387,8 +426,14 @@ contract Plasma {
         address owner = exits[eUtxoPos].owner;
 
         // Validate the spending transaction.
-        require(owner == ECRecovery.recover(confirmationHash, _confirmationSig));
-        require(merkleHash.checkMembership(txindex, root, _proof, 16));
+        require(
+            owner == ECRecovery.recover(confirmationHash, _confirmationSig),
+            "Challenge failed at ECRecovery"
+        );
+        require(
+            merkleHash.checkMembership(txindex, root, _proof, 16),
+            "Challenge failed at Merkle Membership"
+        );
 
         // Delete the owner but keep the amount to prevent another exit.
         delete exits[eUtxoPos].owner;
@@ -406,54 +451,65 @@ contract Plasma {
         bytes _priceTProof,
         bytes _priceSProof,
         bytes _sigs,
-        uint256 [] inputs, // uint256 orderVolume, uint256 priceT, uint256 priceS,
-        uint256 [] indexes // uint256 _orderPos, uint256 priceTIndex, uint256 priceSIndex,
+        uint256[] inputs, // uint256 orderVolume, uint256 priceT, uint256 priceS,
+        uint256[] indexes // uint256 _orderPos, uint256 priceTIndex, uint256 priceSIndex,
     )
         public payable
     {
-        // require that exit is after a chain reset
-        require(indexes[0] < chainReset || chainReset ==0);
+        require(
+            indexes[0] < chainReset || chainReset == 0,
+            "OrderInput is expired! (i.e. older than chain-reset point)"
+        );
 
-
-        // Check that order is in block:
         uint256 blknum = indexes[0] / 1000000000;
         uint256 txindex = (indexes[0] % 1000000000) / 10000;
         bytes32 merkleHash = keccak256(abi.encodePacked(keccak256(_orderBytes), _sigs));
-        require(merkleHash.checkMembership(txindex, childChain[blknum].root, _orderProof, 16));
-        
+        require(
+            merkleHash.checkMembership(txindex, childChain[blknum].root, _orderProof, 16),
+            "Input Exit failed Merkle Membership constraint"
+        );
         // Check supplied price
-        require(bytes32(inputs[1]).checkMembership(indexes[1], childChain[blknum+2].root, _priceTProof, 16));
-        require(bytes32(inputs[2]).checkMembership(indexes[2], childChain[blknum+2].root, _priceSProof, 16));
+        require(
+            bytes32(inputs[1]).checkMembership(indexes[1], childChain[blknum+2].root, _priceTProof, 16),
+            "startOrderInputExit; failed priceT containment verification"
+        );
+        require(
+            bytes32(inputs[2]).checkMembership(indexes[2], childChain[blknum+2].root, _priceSProof, 16),
+            "startOrderInputExit; failed priceS containment verification"
+        );
 
-        // Check double sign
-        require(Validate.checkSigs(keccak256(_orderBytes), childChain[blknum].root, 0, _sigs));
+        require(
+            Validate.checkSigs(keccak256(_orderBytes), childChain[blknum].root, 0, _sigs),
+            "startOrderInputExit; Failed double signature verification"
+        );
 
         // if double sig block is not available
-        if(_doubleSig.length==0){
+        if (_doubleSig.length == 0) {
             // bitmap needs to be already be provided
-            require(ASbitmap[blknum][txindex]>0);
-            require(bitmapHasOneAtSpot(txindex,ASbitmap[blknum]));
-        }
-        else{
-            // proof that signature is in block:
-            // proof that the signature is valid
             require(
-                Validate.checkSigs(
-                    keccak256(abi.encodePacked(_orderBytes,childChain[blknum].root)), 
-                    childChain[blknum+1].root, 0,_doubleSig
-                 )
+                ASbitmap[blknum][txindex] > 0 && bitmapHasOneAtSpot(txindex, ASbitmap[blknum]),
+                "TODO"
+            );
+        } else {
+            // proof that signature is in block and is valid
+            require(
+                Validate.checkSigs(keccak256(abi.encodePacked(_orderBytes, childChain[blknum].root)), childChain[blknum+1].root, 0, _doubleSig), 
+                "TODO"
             );
             // proof that signature is in block
             bytes32 merkleHash2 = keccak256(abi.encodePacked(keccak256(_orderBytes), _doubleSig));
-            require(merkleHash2.checkMembership(indexes[2], childChain[blknum+2].root, _priceSProof, 16));
+            require(
+                merkleHash2.checkMembership(indexes[2], childChain[blknum+2].root, _priceSProof, 16),
+                "TODO"
+            );
         }        
         startExitOrderPart2(_orderBytes, inputs, indexes, _volumeProof);
     }
 
     function startExitOrderPart2(
         bytes _orderBytes,
-        uint256 [] inputs,
-        uint256 [] indexes,
+        uint256[] inputs,
+        uint256[] indexes,
         bytes _volumeProof
     ) 
         internal
@@ -461,27 +517,33 @@ contract Plasma {
         uint256 blknum = indexes[0] / 1000000000;
         // Check the sender owns order.
         ExitingOrder memory exitingOrder = createExitingOrder(_orderBytes);
-        require(msg.sender == exitingOrder.exitor);
+        require(
+            msg.sender == exitingOrder.exitor,
+            "TODO"
+        );
 
         // process volumes
-        if(inputs[0]==0) {
-            require(bytes32(inputs[0]).checkMembership(indexes[0] + 262144, childChain[blknum+1].root, _volumeProof, 16));
+        if (inputs[0] == 0) {
+            require(
+                bytes32(inputs[0]).checkMembership(indexes[0] + 262144, childChain[blknum+1].root, _volumeProof, 16),
+                "TODO"
+            );
             // if order was touched
-            if(inputs[1] <= exitingOrder.limitPrice * inputs[2])
+            if (inputs[1] <= exitingOrder.limitPrice * inputs[2])
                 addExitToQueue(indexes[0], exitingOrder.exitor, exitingOrder.targetToken, inputs[0] * inputs[1] / inputs[2], childChain[blknum].timestamp);
-                if(inputs[0] != exitingOrder.amount) {
-                    addExitToQueue(indexes[0], exitingOrder.exitor, exitingOrder.sourceToken, (exitingOrder.amount - inputs[0]), childChain[blknum].timestamp); 
-                }
-            // if order was not touched:
-            else {
-               addExitToQueue(indexes[0], exitingOrder.exitor, exitingOrder.sourceToken, exitingOrder.amount, childChain[blknum].timestamp);
+            if (inputs[0] != exitingOrder.amount) 
+                addExitToQueue(indexes[0], exitingOrder.exitor, exitingOrder.sourceToken, (exitingOrder.amount - inputs[0]), childChain[blknum].timestamp); 
+            else { // if order was not touched:
+                addExitToQueue(indexes[0], exitingOrder.exitor, exitingOrder.sourceToken, exitingOrder.amount, childChain[blknum].timestamp);
             }
-        } else{
+        } else {
             //Append to list of reqests.
-            require(msg.value >= BOND_FOR_VOLUME_REQUEST);
-            //TODO
-            //addToVolumeRequests( _utxoPos, _orderBytes, orderIndex, blknum+1);
-            emit VolumeRequest( indexes[0], _orderBytes, indexes[0], blknum+1);
+            require(
+                msg.value >= BOND_FOR_VOLUME_REQUEST,
+                "TODO"
+            );
+            // TODO - addToVolumeRequests( _utxoPos, _orderBytes, orderIndex, blknum+1);
+            emit VolumeRequest(indexes[0], _orderBytes, indexes[0], blknum+1);
         }
     }
 
@@ -489,7 +551,7 @@ contract Plasma {
         uint256 _utxoPos,
         bytes _orderBytes,
         uint256 orderIndex,
-        uint blockNumber
+        uint256 blockNumber
     )
         public
     {
@@ -497,7 +559,7 @@ contract Plasma {
     }
 
     /**
-     * Challenge crypto-economic aggrecation signature
+     * Challenge crypto-economic aggregation signature
      */
 
     // blockNr => time
@@ -506,8 +568,8 @@ contract Plasma {
     mapping (uint256 => bytes) ASbitmap;
 
     function challengeAggregationSignature(
-        uint blockNr,
-        uint indexOfIncorrectSig
+        uint256 blockNr,
+        uint256 indexOfIncorrectSig
     )
         public 
         payable 
@@ -516,8 +578,8 @@ contract Plasma {
     }
 
     function completeASChallenge(
-        uint blockNr,
-        uint indexOfIncorrectSig
+        uint256 blockNr,
+        uint256 indexOfIncorrectSig
     )
         public
     {
@@ -525,8 +587,8 @@ contract Plasma {
     }
 
     function provideSigForASChallenge(
-        uint blockNr,
-        uint indexOfIncorrectSig,
+        uint256 blockNr,
+        uint256 indexOfIncorrectSig,
         bytes merkleProof,
         bytes signature
     )
@@ -584,8 +646,14 @@ contract Plasma {
         address owner = exits[_eUtxoIndex].owner;
 
         // Validate the spending transaction.
-        require(owner == ECRecovery.recover(confirmationHash, _confirmationSig));
-        require(merkleHash.checkMembership(txindex, childChain[blknum].root, _proof, 16));
+        require(
+            owner == ECRecovery.recover(confirmationHash, _confirmationSig),
+            "TODO-challengeOrderInputExit-1"
+        );
+        require(
+            merkleHash.checkMembership(txindex, childChain[blknum].root, _proof, 16),
+            "TODO-challengeOrderInputExit-2"
+        );
 
         // Delete the owner but keep the amount to prevent another exit.
         delete exits[_eUtxoIndex].owner;
@@ -596,7 +664,7 @@ contract Plasma {
      * @param _token Asset type to be exited.
      * @return A tuple of the position and time when this exit can be processed.
      */
-    function getNextExit(uint _token)
+    function getNextExit(uint256 _token)
         public
         view
         returns (uint256, uint256)
@@ -608,7 +676,7 @@ contract Plasma {
      * @dev Processes any exits that have completed the challenge period. 
      * @param _token Token type to process.
      */
-    function finalizeExits(uint _token)
+    function finalizeExits(uint256 _token)
         public
     {
         uint256 utxoPos;
@@ -618,7 +686,10 @@ contract Plasma {
         Exit memory currentExit = exits[utxoPos];
         while (exitableAt < block.timestamp) {
             currentExit = exits[utxoPos];
-            require(Token(_token).transfer(currentExit.owner, currentExit.amount));
+            require(
+                Token(_token).transfer(currentExit.owner, currentExit.amount),
+                "Failed token transfer on finalizeExits"
+            );
             queue.delMin();
             delete exits[utxoPos].owner;
 
@@ -688,26 +759,34 @@ contract Plasma {
      * @param _exitor Owner of the UTXO.
      * @param _token Token to be exited.
      * @param _amount Amount to be exited.
-     * @param _created_at Time when the UTXO was created.
+     * @param _createdAt Time when the UTXO was created.
      */
     function addExitToQueue(
         uint256 _utxoPos,
         address _exitor,
-        uint _token,
+        uint256 _token,
         uint256 _amount,
-        uint256 _created_at
+        uint256 _createdAt
     )
         private
     {
-        // Check that we're exiting a known token.
-        require(exitsQueues[_token] != address(0));
+        require(
+            exitsQueues[_token] != address(0),
+            "Token not recognized."
+        );
 
         // Check exit is valid and doesn't already exist.
-        require(_amount > 0);
-        require(exits[_utxoPos].amount == 0);
+        require(
+            _amount > 0,
+            "Must exit positive amount!"
+        );
+        require(
+            exits[_utxoPos].amount == 0,
+            "exit already exists for this UTXO."
+        );
 
         // Calculate priority.
-        uint256 exitableAt = (_created_at.add(2 weeks)).max256(block.timestamp.add(1 weeks));
+        uint256 exitableAt = (_createdAt.add(2 weeks)).max256(block.timestamp.add(1 weeks));
         PriorityQueue queue = PriorityQueue(exitsQueues[_token]);
         queue.insert(exitableAt, _utxoPos);
 
@@ -721,55 +800,52 @@ contract Plasma {
     }
 
     function bitmapHasOneAtSpot(
-        uint index, 
+        uint256 index,
         bytes bitmap
     ) 
         public view returns (bool) 
     {
-        return bitmap[index]==1;
+        return bitmap[index] == 1;
     }
 
     function getUtxoPos(bytes memory challengingTxBytes, uint256 oIndex)
         internal
-        constant
+        view
         returns (uint256)
     {
         var txList = RLPReader.toList(RLPReader.toRlpItem(challengingTxBytes));
         uint256 oIndexShift = oIndex * 3;
-        return
-            RLPReader.toUint(txList[0 + oIndexShift]) +
-            RLPReader.toUint(txList[1 + oIndexShift]) +
-            RLPReader.toUint(txList[2 + oIndexShift]);
+        return RLPReader.touint256(txList[0 + oIndexShift]) + RLPReader.touint256(txList[1 + oIndexShift]) + RLPReader.touint256(txList[2 + oIndexShift]);
     }
 
     function createExitingTx(bytes memory exitingTxBytes, uint256 oindex)
         internal
-        constant
+        view
         returns (ExitingTx)
     {
         var txList = RLPReader.toList(RLPReader.toRlpItem(exitingTxBytes));
         return ExitingTx({
             exitor: RLPReader.toAddress(txList[7 + 2 * oindex]),
-            token: RLPReader.toUint(txList[6]),
-            amount: RLPReader.toUint(txList[8 + 2 * oindex]),
-            inputCount: RLPReader.toUint(txList[0]) * RLPReader.toUint(txList[3])
+            token: RLPReader.touint256(txList[6]),
+            amount: RLPReader.touint256(txList[8 + 2 * oindex]),
+            inputCount: RLPReader.touint256(txList[0]) * RLPReader.touint256(txList[3])
         });
     }
 
     function createExitingOrder(bytes memory exitingOrderBytes)
         internal
-        constant
+        view
         returns (ExitingOrder)
     {
         var txList = RLPReader.toList(RLPReader.toRlpItem(exitingOrderBytes));
-        uint skeleton = RLPReader.toUint(txList[0]);
-        uint _amount = skeleton % (1329227995784915872903807060280344576); //2**120
+        uint256 skeleton = RLPReader.touint256(txList[0]);
+        uint256 _amount = skeleton % (1329227995784915872903807060280344576); //2**120
         skeleton = skeleton / 1329227995784915872903807060280344576;
-        uint _sourceToken = skeleton % 8;
+        uint256 _sourceToken = skeleton % 8;
         skeleton = skeleton / 8;
-        uint _targetToken = skeleton % 8;
+        uint256 _targetToken = skeleton % 8;
         skeleton = skeleton / 8;
-        uint _limitPrice = skeleton;
+        uint256 _limitPrice = skeleton;
         return ExitingOrder({
             exitor: RLPReader.toAddress(txList[1]),
             targetToken:_targetToken,
