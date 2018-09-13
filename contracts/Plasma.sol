@@ -815,7 +815,7 @@ contract Plasma {
     {
         var txList = RLPReader.toList(RLPReader.toRlpItem(challengingTxBytes));
         uint oIndexShift = oIndex * 3;
-        return RLPReader.touint(txList[0 + oIndexShift]) + RLPReader.touint(txList[1 + oIndexShift]) + RLPReader.touint(txList[2 + oIndexShift]);
+        return RLPReader.toUint(txList[0 + oIndexShift]) + RLPReader.toUint(txList[1 + oIndexShift]) + RLPReader.toUint(txList[2 + oIndexShift]);
     }
 
     function createExitingTx(bytes memory exitingTxBytes, uint oindex)
@@ -826,9 +826,9 @@ contract Plasma {
         var txList = RLPReader.toList(RLPReader.toRlpItem(exitingTxBytes));
         return ExitingTx({
             exitor: RLPReader.toAddress(txList[7 + 2 * oindex]),
-            token: RLPReader.touint(txList[6]),
-            amount: RLPReader.touint(txList[8 + 2 * oindex]),
-            inputCount: RLPReader.touint(txList[0]) * RLPReader.touint(txList[3])
+            token: RLPReader.toUint(txList[6]),
+            amount: RLPReader.toUint(txList[8 + 2 * oindex]),
+            inputCount: RLPReader.toUint(txList[0]) * RLPReader.toUint(txList[3])
         });
     }
 
@@ -838,7 +838,7 @@ contract Plasma {
         returns (ExitingOrder)
     {
         var txList = RLPReader.toList(RLPReader.toRlpItem(exitingOrderBytes));
-        uint skeleton = RLPReader.touint(txList[0]);
+        uint skeleton = RLPReader.toUint(txList[0]);
         uint _amount = skeleton % (1329227995784915872903807060280344576); //2**120
         skeleton = skeleton / 1329227995784915872903807060280344576;
         uint _sourceToken = skeleton % 8;
