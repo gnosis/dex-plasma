@@ -12,7 +12,7 @@ import "./Validate.sol";
 import "@gnosis.pm/util-contracts/contracts/Token.sol";
 
 // TODO - remove these one by one!
-// solhint-disable not-rely-on-time, func-order, no-empty-blocks, max-line-length, separate-by-one-line-in-contract
+// solhint-disable not-rely-on-time, func-order, no-empty-blocks, separate-by-one-line-in-contract
 
 /**
  * @title RootChain
@@ -116,7 +116,6 @@ contract Plasma {
         BlockType blockType; 
     }
 
-
     /*
      * Modifiers
      */
@@ -125,7 +124,6 @@ contract Plasma {
         require(msg.sender == operator, "Sender is not Operator!");
         _;
     }
-
 
     /*
      * Constructor
@@ -263,7 +261,6 @@ contract Plasma {
             "Token transfer failure on deposit()"
         );
 
-
         bytes32 root = keccak256(abi.encodePacked(msg.sender, token, amount));
         uint depositBlock = getDepositBlock();
         childChain[depositBlock] = ChildBlock({
@@ -272,7 +269,6 @@ contract Plasma {
             blockType: BlockType.Deposit
         });
         currentDepositBlock = currentDepositBlock.add(1);
-
         emit Deposit(msg.sender, depositBlock, address(token), amount);
     }
 
@@ -298,7 +294,9 @@ contract Plasma {
 
         // Validate the given owner and amount.
         bytes32 root = childChain[blknum].root;
-        bytes32 depositHash = keccak256(abi.encodePacked(msg.sender, _token, _amount));
+        bytes32 depositHash = keccak256(
+            abi.encodePacked(msg.sender, _token, _amount)
+        );
         require(
             root == depositHash,
             "Root and depositHash do not match"
@@ -313,7 +311,7 @@ contract Plasma {
      * @param _utxoPos The position of the exiting utxo in the format of blknum * 1000000000 + index * 10000 + oindex.
      * @param _txBytes The transaction being exited in RLP bytes format.
      * @param _proof Proof of the exiting transactions inclusion for the block specified by utxoPos.
-     * @param _sigs Both transaction signatures and confirmations signatures used to verify that the exiting transaction has been confirmed.
+     * @param _sigs Both transaction and confirmation signatures used to verify exiting transaction has been confirmed.
      */
     function startTransactionExit(
         uint _utxoPos,
@@ -493,7 +491,11 @@ contract Plasma {
         } else {
             // proof that signature is in block and is valid
             require(
-                Validate.checkSigs(keccak256(abi.encodePacked(_orderBytes, childChain[blknum].root)), childChain[blknum+1].root, 0, _doubleSig), 
+                Validate.checkSigs(
+                    keccak256(
+                        abi.encodePacked(_orderBytes, childChain[blknum].root)), 
+                        childChain[blknum+1].root, 0, _doubleSig
+                ),
                 "TODO"
             );
             // proof that signature is in block
@@ -530,11 +532,29 @@ contract Plasma {
             );
             // if order was touched
             if (inputs[1] <= exitingOrder.limitPrice * inputs[2])
-                addExitToQueue(indexes[0], exitingOrder.exitor, exitingOrder.targetToken, inputs[0] * inputs[1] / inputs[2], childChain[blknum].timestamp);
+                addExitToQueue(
+                    indexes[0],
+                    exitingOrder.exitor,
+                    exitingOrder.targetToken,
+                    inputs[0] * inputs[1] / inputs[2],
+                    childChain[blknum].timestamp
+                );
             if (inputs[0] != exitingOrder.amount) 
-                addExitToQueue(indexes[0], exitingOrder.exitor, exitingOrder.sourceToken, (exitingOrder.amount - inputs[0]), childChain[blknum].timestamp); 
+                addExitToQueue(
+                    indexes[0],
+                    exitingOrder.exitor,
+                    exitingOrder.sourceToken,
+                    exitingOrder.amount - inputs[0],
+                    childChain[blknum].timestamp
+                );
             else { // if order was not touched:
-                addExitToQueue(indexes[0], exitingOrder.exitor, exitingOrder.sourceToken, exitingOrder.amount, childChain[blknum].timestamp);
+                addExitToQueue(
+                    indexes[0],
+                    exitingOrder.exitor,
+                    exitingOrder.sourceToken,
+                    exitingOrder.amount,
+                    childChain[blknum].timestamp
+                );
             }
         } else {
             //Append to list of reqests.
@@ -563,9 +583,9 @@ contract Plasma {
      */
 
     // blockNr => time
-    mapping (uint => uint) ASrequests;
+    mapping (uint => uint) public ASrequests;
     // blockNR => bitmap for Aggregated Signature
-    mapping (uint => bytes) ASbitmap;
+    mapping (uint => bytes) public ASbitmap;
 
     function challengeAggregationSignature(
         uint blockNr,
@@ -741,13 +761,8 @@ contract Plasma {
         view
         returns (address, uint, uint)
     {
-        return (
-            exits[_utxoPos].owner, 
-            exits[_utxoPos].token, 
-            exits[_utxoPos].amount
-        );
+        return (exits[_utxoPos].owner, exits[_utxoPos].token, exits[_utxoPos].amount);
     }
-
 
     /*
      * Private functions
