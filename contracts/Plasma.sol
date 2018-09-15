@@ -271,7 +271,8 @@ contract Plasma {
         currentDepositBlock = currentDepositBlock.add(1);
         emit Deposit(msg.sender, depositBlock, address(token), amount);
     }
-
+    event DebugHash(bytes32 a,bytes32 b);
+    event DebugInt(uint a, uint b, uint c);
     /**
      * @dev Starts an exit from a deposit.
      * @param _depositPos UTXO position of the deposit.
@@ -287,20 +288,13 @@ contract Plasma {
     {
         uint blknum = _depositPos / 1000000000;
 
-        require(
-            blknum % CHILD_BLOCK_INTERVAL != 0,
-            "UTXO provided is not a deposit"
-        );
+        require(blknum % CHILD_BLOCK_INTERVAL != 0, "UTXO provided is not a deposit");
 
         // Validate the given owner and amount.
         bytes32 root = childChain[blknum].root;
-        bytes32 depositHash = keccak256(
-            abi.encodePacked(msg.sender, _token, _amount)
-        );
-        require(
-            root == depositHash,
-            "Root and depositHash do not match"
-        );
+        bytes32 depositHash = keccak256(abi.encodePacked(msg.sender, Token(listedTokens[_token]), _amount));
+
+        require(root == depositHash, "Root and depositHash do not match");
 
         addExitToQueue(_depositPos, msg.sender, _token, _amount, childChain[blknum].timestamp);
     }
