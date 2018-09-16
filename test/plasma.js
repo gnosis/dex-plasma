@@ -78,14 +78,27 @@ contract('Plasma', (accounts) => {
     })
   })
 
-  describe('submitTransactionBlock', () => {
+  describe('submitBlock: Trivial Tests', () => {
 
-    it('Failed - onlyOperator', async () => {
-      await assertRejects(plasma.submitTransactionBlock(zeroHash, {from: depositor}))
+    it('Only Operator', async () => {
+      await assertRejects(plasma.submitBlock(zeroHash, 0, {from: depositor}))
     })
 
     it('Empty Block', async () => {
-      txn = await plasma.submitTransactionBlock(zeroHash, {from: operator})
+      txn = await plasma.submitBlock(zeroHash, 0, {from: operator})
+    })
+  })
+
+  describe('bitmapHasOneAtSpot:', () => {
+    one_zero = "0x0100"  // This is hex for the bit-array [1, 0]
+    it('True & False', async () => {
+      be_true = await plasma.bitmapHasOneAtSpot(0, one_zero)
+      assert.equal(be_true, true)
+      be_false = await plasma.bitmapHasOneAtSpot(1, one_zero)
+    })
+
+    it('Index Out of Range', async () => {
+      await assertRejects(plasma.bitmapHasOneAtSpot(2, one_zero))
     })
   })
 
