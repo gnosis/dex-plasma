@@ -9,15 +9,12 @@ import "openzeppelin-solidity/contracts/ECRecovery.sol";
  * @dev Checks that the signatures on a transaction are valid
  */
 library Validate {
-    function checkSigs(bytes32 txHash, bytes32 rootHash, uint256 inputCount, bytes sigs)
+    function checkSigs(bytes32 txHash, bytes32 rootHash, uint inputCount, bytes sigs)
         internal
         view
         returns (bool)
     {
-        require(
-            sigs.length % 65 == 0 && sigs.length <= 260,
-            "Signature failed length verification"
-        );
+        require(sigs.length % 65 == 0 && sigs.length <= 260, "Signatures failed length verification");
         bytes memory sig1 = BytesLib.slice(sigs, 0, 65);
         bytes memory sig2 = BytesLib.slice(sigs, 65, 65);
         bytes memory confSig1 = BytesLib.slice(sigs, 130, 65);
