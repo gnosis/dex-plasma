@@ -569,13 +569,14 @@ contract Plasma {
      * @param queueNr unique reference for the exit
      * @param volume supplied for the exit
      */
-
     function provideVolumeForOrderInputExit(
         uint queueNr,
         uint volume,
-        bytes32 volumeProof)
-    public {
-
+        bytes32 volumeProof
+    )
+        public 
+    {
+        // TODO
     }
 
     /**
@@ -625,11 +626,7 @@ contract Plasma {
      * @param _token Asset type to be exited.
      * @return A tuple of the position and time when this exit can be processed.
      */
-    function getNextExit(uint _token)
-        public
-        view
-        returns (uint, uint)
-    {
+    function getNextExit(uint _token) public view returns (uint, uint) {
         return PriorityQueue(exitsQueues[_token]).getMin();
     }
 
@@ -672,11 +669,7 @@ contract Plasma {
      * @param _blockNumber Number of the block to return.
      * @return Child chain block at the specified block number.
      */
-    function getChildChain(uint _blockNumber)
-        public
-        view
-        returns (bytes32, uint, uint)
-    {
+    function getChildChain(uint _blockNumber) public view returns (bytes32, uint, uint) {
         return (
             childChain[_blockNumber].root, 
             childChain[_blockNumber].timestamp, 
@@ -697,11 +690,7 @@ contract Plasma {
      * @param _utxoPos Position of the UTXO in the chain.
      * @return A tuple representing the active exit for the given UTXO.
      */
-    function getExit(uint _utxoPos)
-        public
-        view
-        returns (address, uint, uint)
-    {
+    function getExit(uint _utxoPos) public view returns (address, uint, uint) {
         return (exits[_utxoPos].owner, exits[_utxoPos].token, exits[_utxoPos].amount);
     }
 
@@ -726,20 +715,9 @@ contract Plasma {
     )
         private
     {
-        require(
-            exitsQueues[_token] != address(0),
-            "Token not recognized."
-        );
-
-        // Check exit is valid and doesn't already exist.
-        require(
-            _amount > 0,
-            "Must exit positive amount!"
-        );
-        require(
-            exits[_utxoPos].amount == 0,
-            "exit already exists for this UTXO."
-        );
+        require(exitsQueues[_token] != address(0), "Token not recognized.");
+        require(_amount > 0, "Must exit positive amount!");
+        require(exits[_utxoPos].amount == 0, "exit already exists for this UTXO.");
 
         // Calculate priority.
         uint exitableAt = (_createdAt.add(2 weeks)).max256(block.timestamp.add(1 weeks));
