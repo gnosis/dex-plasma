@@ -109,6 +109,15 @@ contract Plasma {
         AuctionResult,
         AuctionOutput
     }
+    function getBlockType(uint _typeIndex) internal pure returns(BlockType) {
+        require (_typeIndex < 6, "Enum Index out of range");  // TODO - enum.length?
+        if (_typeIndex == 0) return BlockType.Transaction;
+        if (_typeIndex == 1) return BlockType.Deposit;
+        if (_typeIndex == 2) return BlockType.Order;
+        if (_typeIndex == 3) return BlockType.OrderDoubleSign;
+        if (_typeIndex == 4) return BlockType.AuctionResult;
+        if (_typeIndex == 5) return BlockType.AuctionOutput;
+    }
 
     struct ChildBlock {
         bytes32 root;
@@ -148,100 +157,54 @@ contract Plasma {
     /**
      * @dev Allows Plasma chain operator to submit block root.
      * @param _root The root of a child chain block.
+     * @param _blockType Type of block to be submitted.
      */
-    function submitTransactionBlock(bytes32 _root) public onlyOperator {
+    function submitBlock(bytes32 _root, uint _blockType) public onlyOperator {
 
-        //enforcing order of blocks:
-        require(
-            childChain[currentChildBlock.sub(CHILD_BLOCK_INTERVAL)].blockType == BlockType.Transaction || 
-            childChain[currentChildBlock.sub(CHILD_BLOCK_INTERVAL)].blockType == BlockType.AuctionResult,
-            "Transaction block submitted is wrong order!"
-        );
-
-        childChain[currentChildBlock] = ChildBlock({
-            root: _root,
-            timestamp: block.timestamp,
-            blockType: BlockType.Transaction
-        });
-
-        // Update block numbers.
-        currentChildBlock = currentChildBlock.add(CHILD_BLOCK_INTERVAL);
-        currentDepositBlock = 1;
-        emit BlockSubmitted(_root, block.timestamp);
-    }
-
-
-    /**
-     * @dev Allows Plasma chain operator to submit block root.
-     * @param _root The root of a child chain block.
-     */
-    function submitOrderBlock(bytes32 _root) public onlyOperator {
-        //enforcing order of blocks:
-        require(
-            childChain[currentChildBlock.sub(CHILD_BLOCK_INTERVAL)].blockType == BlockType.Transaction, 
-            "Order block must come immediately after Transaction Block"
-        );
-        
-        // processing block
-        childChain[currentChildBlock] = ChildBlock({
-            root: _root,
-            timestamp: block.timestamp,
-            blockType: BlockType.Order
-        });
-
-        // Update block numbers.
-        currentChildBlock = currentChildBlock.add(CHILD_BLOCK_INTERVAL);
-        currentDepositBlock = 1;
-
-        emit BlockSubmitted(_root, block.timestamp);
-    }
-
-    /**
-     * @dev Allows Plasma chain operator to submit block root.
-     * @param _root The root of a child chain block.
-     */
-    function submitOrderDoubleSignBlock(bytes32 _root) public onlyOperator {
-        //enforcing order of blocks:
-        require(
-            childChain[currentChildBlock.sub(CHILD_BLOCK_INTERVAL)].blockType == BlockType.Order,
-            "Double Sig must come immediately after Order Block"
-        );
-        
-        // processing block
-        childChain[currentChildBlock] = ChildBlock({
-            root: _root,
-            timestamp: block.timestamp,
-            blockType: BlockType.OrderDoubleSign
-        });
-
-        // Update block numbers.
-        currentChildBlock = currentChildBlock.add(CHILD_BLOCK_INTERVAL);
-        currentDepositBlock = 1;
-
-        emit BlockSubmitted(_root, block.timestamp);
-    }
-    /**
-     * @dev Allows Plasma chain operator to submit block root.
-     * @param _root The root of a child chain block.
-     */
-    function submitAuctionResultBlock(bytes32 _root) public onlyOperator {
-
+        // Place if statement as if it were a switch for each block type
         // enforcing order of blocks:
-        require(
-            childChain[currentChildBlock.sub(CHILD_BLOCK_INTERVAL)].blockType == BlockType.OrderDoubleSign,
-            "Auction result block must come immediately after DoubleSig Block"
-        );
+        // BIG SWITCH:
+        BlockType requestBlockType = getBlockType(_blockType);
+        BlockType prevBlockType = childChain[currentChildBlock.sub(CHILD_BLOCK_INTERVAL)].blockType;
 
+        // This is arguably bad practice in agile development.
+        if (requestBlockType == BlockType.Transaction) {  // Transaction
+            require(
+                prevBlockType == BlockType.Transaction || prevBlockType == BlockType.AuctionResult,
+                "Transaction block submitted is wrong order!"
+            );
+        } else if (requestBlockType == BlockType.Order) {  // Order
+            require(
+                prevBlockType == BlockType.Transaction,
+                "Order block must come immediately after Transaction Block"
+            );
+        } else if (requestBlockType == BlockType.OrderDoubleSign) {  // OrderDoubleSign
+            require(
+                prevBlockType == BlockType.Order,
+                "Confirmation signatures must come immediately after Order Block"
+            );
+        } else if (requestBlockType == BlockType.AuctionResult) {  // AuctionResult
+            require(
+                prevBlockType == BlockType.OrderDoubleSign,
+                "Auction Result must come immediately after DoubleSig Block"
+            );
+        } else if (requestBlockType == BlockType.AuctionOutput) {  // AuctionOutput
+            require(
+                prevBlockType == BlockType.AuctionResult,
+                "Auction Output must come immediately after Auction Result Block"
+            );
+        }
+
+        // THE REST!
         childChain[currentChildBlock] = ChildBlock({
             root: _root,
             timestamp: block.timestamp,
-            blockType: BlockType.AuctionResult
+            blockType: getBlockType(_blockType)
         });
 
         // Update block numbers.
         currentChildBlock = currentChildBlock.add(CHILD_BLOCK_INTERVAL);
         currentDepositBlock = 1;
-
         emit BlockSubmitted(_root, block.timestamp);
     }
 
@@ -271,21 +234,14 @@ contract Plasma {
         currentDepositBlock = currentDepositBlock.add(1);
         emit Deposit(msg.sender, depositBlock, address(token), amount);
     }
-    event DebugHash(bytes32 a,bytes32 b);
-    event DebugInt(uint a, uint b, uint c);
+
     /**
      * @dev Starts an exit from a deposit.
      * @param _depositPos UTXO position of the deposit.
      * @param _token Token type to deposit.
      * @param _amount Deposit amount.
      */
-    function startDepositExit(
-        uint _depositPos,
-        uint _token, 
-        uint _amount
-    )
-        public
-    {
+    function startDepositExit(uint _depositPos, uint _token, uint _amount) public{
         uint blknum = _depositPos / 1000000000;
 
         require(blknum % CHILD_BLOCK_INTERVAL != 0, "UTXO provided is not a deposit");
@@ -294,7 +250,7 @@ contract Plasma {
         bytes32 root = childChain[blknum].root;
         bytes32 depositHash = keccak256(abi.encodePacked(msg.sender, Token(listedTokens[_token]), _amount));
 
-        require(root == depositHash, "Root and depositHash do not match");
+        require(root == depositHash, "Root and depositHash don't match");
 
         addExitToQueue(_depositPos, msg.sender, _token, _amount, childChain[blknum].timestamp);
     }
@@ -319,16 +275,10 @@ contract Plasma {
         uint txindex = (_utxoPos % 1000000000) / 10000;
         uint oindex = _utxoPos - blknum * 1000000000 - txindex * 10000; 
 
-        require(
-            _utxoPos < chainReset || chainReset == 0,
-            "UTXO is expired! (i.e. older than chain-reset point)"
-        );
+        require(_utxoPos < chainReset || chainReset == 0, "UTXO is expired! (i.e. older than chain-reset point)");
 
         ExitingTx memory exitingTx = createExitingTx(_txBytes, oindex);
-        require(
-            msg.sender == exitingTx.exitor,
-            "Sender does not own UTXO"
-        );
+        require(msg.sender == exitingTx.exitor, "Sender does not own UTXO");
 
         // Check the transaction was included in the chain and is correctly signed.
         bytes32 root = childChain[blknum].root; 
@@ -338,10 +288,7 @@ contract Plasma {
             "Failed Signature check on transaction exit. Bad double signature?"
         );
 
-        require(
-            merkleHash.checkMembership(txindex, root, _proof, 16),
-            "Failed Merkle Membership check."
-        );
+        require(merkleHash.checkMembership(txindex, root, _proof, 16), "Failed Merkle Membership check.");
 
         addExitToQueue(_utxoPos, exitingTx.exitor, exitingTx.token, exitingTx.amount, childChain[blknum].timestamp);
     }
@@ -807,13 +754,14 @@ contract Plasma {
 
         emit ExitStarted(msg.sender, _utxoPos, _token, _amount);
     }
-
+    event DebugBytes(bytes a, uint b);
     function bitmapHasOneAtSpot(
         uint index,
         bytes bitmap
     ) 
         public view returns (bool) 
     {
+        require(index < bitmap.length, "Index out of range");
         return bitmap[index] == 1;
     }
 
