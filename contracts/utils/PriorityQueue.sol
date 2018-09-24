@@ -41,8 +41,7 @@ contract PriorityQueue {
      * @dev Returns the top element of the heap.
      * @return The smallest element in the priority queue.
      */
-    function getMin() public view returns (uint256, uint256) 
-    {
+    function getMin() public view returns (uint256, uint256) {
         return _splitElement(heapList[1]);
     }
 
