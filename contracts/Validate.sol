@@ -11,7 +11,7 @@ import "openzeppelin-solidity/contracts/ECRecovery.sol";
 library Validate {
     function checkSigs(bytes32 txHash, bytes32 rootHash, uint256 inputCount, bytes sigs)
         internal
-        view
+        pure
         returns (bool)
     {
         require(sigs.length % 65 == 0 && sigs.length <= 260, "Signatures failed length verification");

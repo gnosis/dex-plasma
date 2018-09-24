@@ -110,16 +110,6 @@ contract Plasma {
         AuctionOutput
     }
 
-    // function getBlockType(uint _typeIndex) internal pure returns(BlockType) {
-    //     require (_typeIndex < 6, "Enum Index out of range");  // TODO - enum.length?
-    //     if (_typeIndex == 0) return BlockType.Transaction;
-    //     if (_typeIndex == 1) return BlockType.Deposit;
-    //     if (_typeIndex == 2) return BlockType.Order;
-    //     if (_typeIndex == 3) return BlockType.OrderDoubleSign;
-    //     if (_typeIndex == 4) return BlockType.AuctionResult;
-    //     if (_typeIndex == 5) return BlockType.AuctionOutput;
-    // }
-
     struct ChildBlock {
         bytes32 root;
         uint timestamp;
@@ -214,15 +204,8 @@ contract Plasma {
     function deposit(uint amount, uint tokenNr) public {
         Token token = Token(listedTokens[tokenNr]);
         // Only allow up to CHILD_BLOCK_INTERVAL deposits per child block.
-        require(
-            currentDepositBlock < CHILD_BLOCK_INTERVAL,
-            "Too many deposit blocks before next Transaction"
-        );
-        
-        require(
-            token.transferFrom(msg.sender, this, amount),
-            "Token transfer failure on deposit()"
-        );
+        require(currentDepositBlock < CHILD_BLOCK_INTERVAL, "Too many deposit blocks before next Transaction");
+        require(token.transferFrom(msg.sender, this, amount),  "Token transfer failure on deposit()");
 
         bytes32 root = keccak256(abi.encodePacked(msg.sender, token, amount));
         uint depositBlock = getDepositBlock();
@@ -386,7 +369,7 @@ contract Plasma {
         bytes _orderProof,
         bytes _volumeProof,
         bytes _doubleSig,
-        bytes _doubleSignProof,
+        // bytes _doubleSignProof,
         bytes _priceTProof,
         bytes _priceSProof,
         bytes _sigs,
@@ -508,16 +491,15 @@ contract Plasma {
         }
     }
 
-    function addToVolumeRequests(
-        uint _utxoPos,
-        bytes _orderBytes,
-        uint orderIndex,
-        uint blockNumber
-    )
-        public
-    {
-        // TODO
-    }
+    // function addToVolumeRequests(
+    //     uint _utxoPos,
+    //     bytes _orderBytes,
+    //     uint orderIndex,
+    //     uint blockNumber
+    // )
+    //     public
+    // {
+    // }
 
     /**
      * Challenge crypto-economic aggregation signature
@@ -528,35 +510,35 @@ contract Plasma {
     // blockNR => bitmap for Aggregated Signature
     mapping (uint => bytes) public ASbitmap;
 
-    function challengeAggregationSignature(
-        uint blockNr,
-        uint indexOfIncorrectSig
-    )
-        public 
-        payable 
-    {
-        // TODO
-    }
+    // function challengeAggregationSignature(
+    //     uint blockNr,
+    //     uint indexOfIncorrectSig
+    // )
+    //     public 
+    //     payable 
+    // {
+    //     // TODO
+    // }
 
-    function completeASChallenge(
-        uint blockNr,
-        uint indexOfIncorrectSig
-    )
-        public
-    {
-        // TODO
-    }
+    // function completeASChallenge(
+    //     uint blockNr,
+    //     uint indexOfIncorrectSig
+    // )
+    //     public
+    // {
+    //     // TODO
+    // }
 
-    function provideSigForASChallenge(
-        uint blockNr,
-        uint indexOfIncorrectSig,
-        bytes merkleProof,
-        bytes signature
-    )
-        public 
-    {
-        // TODO
-    }
+    // function provideSigForASChallenge(
+    //     uint blockNr,
+    //     uint indexOfIncorrectSig,
+    //     bytes merkleProof,
+    //     bytes signature
+    // )
+    //     public 
+    // {
+    //     // TODO
+    // }
 
     /*
      * Function to ask for specific data piece:
@@ -569,15 +551,15 @@ contract Plasma {
      * @param queueNr unique reference for the exit
      * @param volume supplied for the exit
      */
-    function provideVolumeForOrderInputExit(
-        uint queueNr,
-        uint volume,
-        bytes32 volumeProof
-    )
-        public 
-    {
-        // TODO
-    }
+    // function provideVolumeForOrderInputExit(
+    //     uint queueNr,
+    //     uint volume,
+    //     bytes32 volumeProof
+    // )
+    //     public 
+    // {
+    //     // TODO
+    // }
 
     /**
      * @dev Allows anyone to challenge an exiting transaction by submitting proof of a double spend on the child chain.
@@ -737,7 +719,7 @@ contract Plasma {
         uint index,
         bytes bitmap
     ) 
-        public view returns (bool) 
+        public pure returns (bool) 
     {
         require(index < bitmap.length, "Index out of range");
         return bitmap[index] == 1;
@@ -745,20 +727,20 @@ contract Plasma {
 
     function getUtxoPos(bytes memory challengingTxBytes, uint oIndex)
         internal
-        view
+        pure
         returns (uint)
     {
-        var txList = RLPReader.toList(RLPReader.toRlpItem(challengingTxBytes));
+        RLPReader.RLPItem[] memory txList = RLPReader.toList(RLPReader.toRlpItem(challengingTxBytes));
         uint oIndexShift = oIndex * 3;
         return RLPReader.toUint(txList[0 + oIndexShift]) + RLPReader.toUint(txList[1 + oIndexShift]) + RLPReader.toUint(txList[2 + oIndexShift]);
     }
 
     function createExitingTx(bytes memory exitingTxBytes, uint oindex)
         internal
-        view
+        pure
         returns (ExitingTx)
     {
-        var txList = RLPReader.toList(RLPReader.toRlpItem(exitingTxBytes));
+        RLPReader.RLPItem[] memory txList = RLPReader.toList(RLPReader.toRlpItem(exitingTxBytes));
         return ExitingTx({
             exitor: RLPReader.toAddress(txList[7 + 2 * oindex]),
             token: RLPReader.toUint(txList[6]),
@@ -769,10 +751,10 @@ contract Plasma {
 
     function createExitingOrder(bytes memory exitingOrderBytes)
         internal
-        view
+        pure
         returns (ExitingOrder)
     {
-        var txList = RLPReader.toList(RLPReader.toRlpItem(exitingOrderBytes));
+        RLPReader.RLPItem[] memory txList = RLPReader.toList(RLPReader.toRlpItem(exitingOrderBytes));
         uint skeleton = RLPReader.toUint(txList[0]);
         uint _amount = skeleton % (1329227995784915872903807060280344576); //2**120
         skeleton = skeleton / 1329227995784915872903807060280344576;
