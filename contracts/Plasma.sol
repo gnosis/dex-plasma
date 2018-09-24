@@ -109,15 +109,16 @@ contract Plasma {
         AuctionResult,
         AuctionOutput
     }
-    function getBlockType(uint _typeIndex) internal pure returns(BlockType) {
-        require (_typeIndex < 6, "Enum Index out of range");  // TODO - enum.length?
-        if (_typeIndex == 0) return BlockType.Transaction;
-        if (_typeIndex == 1) return BlockType.Deposit;
-        if (_typeIndex == 2) return BlockType.Order;
-        if (_typeIndex == 3) return BlockType.OrderDoubleSign;
-        if (_typeIndex == 4) return BlockType.AuctionResult;
-        if (_typeIndex == 5) return BlockType.AuctionOutput;
-    }
+
+    // function getBlockType(uint _typeIndex) internal pure returns(BlockType) {
+    //     require (_typeIndex < 6, "Enum Index out of range");  // TODO - enum.length?
+    //     if (_typeIndex == 0) return BlockType.Transaction;
+    //     if (_typeIndex == 1) return BlockType.Deposit;
+    //     if (_typeIndex == 2) return BlockType.Order;
+    //     if (_typeIndex == 3) return BlockType.OrderDoubleSign;
+    //     if (_typeIndex == 4) return BlockType.AuctionResult;
+    //     if (_typeIndex == 5) return BlockType.AuctionOutput;
+    // }
 
     struct ChildBlock {
         bytes32 root;
@@ -159,36 +160,35 @@ contract Plasma {
      * @param _root The root of a child chain block.
      * @param _blockType Type of block to be submitted.
      */
-    function submitBlock(bytes32 _root, uint _blockType) public onlyOperator {
+    function submitBlock(bytes32 _root, BlockType _blockType) public onlyOperator {
 
         // Place if statement as if it were a switch for each block type
         // enforcing order of blocks:
         // BIG SWITCH:
-        BlockType requestBlockType = getBlockType(_blockType);
         BlockType prevBlockType = childChain[currentChildBlock.sub(CHILD_BLOCK_INTERVAL)].blockType;
 
         // This is arguably bad practice in agile development.
-        if (requestBlockType == BlockType.Transaction) {  // Transaction
+        if (_blockType == BlockType.Transaction) {  // Transaction
             require(
                 prevBlockType == BlockType.Transaction || prevBlockType == BlockType.AuctionResult,
                 "Transaction block submitted is wrong order!"
             );
-        } else if (requestBlockType == BlockType.Order) {  // Order
+        } else if (_blockType == BlockType.Order) {  // Order
             require(
                 prevBlockType == BlockType.Transaction,
                 "Order block must come immediately after Transaction Block"
             );
-        } else if (requestBlockType == BlockType.OrderDoubleSign) {  // OrderDoubleSign
+        } else if (_blockType == BlockType.OrderDoubleSign) {  // OrderDoubleSign
             require(
                 prevBlockType == BlockType.Order,
                 "Confirmation signatures must come immediately after Order Block"
             );
-        } else if (requestBlockType == BlockType.AuctionResult) {  // AuctionResult
+        } else if (_blockType == BlockType.AuctionResult) {  // AuctionResult
             require(
                 prevBlockType == BlockType.OrderDoubleSign,
                 "Auction Result must come immediately after DoubleSig Block"
             );
-        } else if (requestBlockType == BlockType.AuctionOutput) {  // AuctionOutput
+        } else if (_blockType == BlockType.AuctionOutput) {  // AuctionOutput
             require(
                 prevBlockType == BlockType.AuctionResult,
                 "Auction Output must come immediately after Auction Result Block"
@@ -199,7 +199,7 @@ contract Plasma {
         childChain[currentChildBlock] = ChildBlock({
             root: _root,
             timestamp: block.timestamp,
-            blockType: getBlockType(_blockType)
+            blockType: _blockType
         });
 
         // Update block numbers.
