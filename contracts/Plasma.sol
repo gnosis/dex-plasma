@@ -369,7 +369,7 @@ contract Plasma {
         bytes _orderProof,
         bytes _volumeProof,
         bytes _doubleSig,
-        // bytes _doubleSignProof,
+        bytes, // _doubleSignProof,
         bytes _priceTProof,
         bytes _priceSProof,
         bytes _sigs,
