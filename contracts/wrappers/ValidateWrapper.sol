@@ -4,7 +4,7 @@ import "../Validate.sol";
 
 
 contract ValidateWrapper {
-    function checkSigs(bytes32 txHash, bytes32 rootHash, uint256 inputCount, bytes sigs)
+    function checkSigs(bytes32 txHash, bytes32 rootHash, uint inputCount, bytes sigs)
         public
         pure
         returns (bool)
