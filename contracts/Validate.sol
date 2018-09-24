@@ -14,7 +14,7 @@ library Validate {
         view
         returns (bool)
     {
-        require(sigs.length % 65 == 0 && sigs.length <= 260);
+        require(sigs.length % 65 == 0 && sigs.length <= 260, "Signatures failed length verification");
         bytes memory sig1 = BytesLib.slice(sigs, 0, 65);
         bytes memory sig2 = BytesLib.slice(sigs, 65, 65);
         bytes memory confSig1 = BytesLib.slice(sigs, 130, 65);
