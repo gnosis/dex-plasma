@@ -29,6 +29,7 @@
   },
   "devDependencies": {
     "@digix/tempo": "^0.2.0",
+    "@gnosis.pm/mock-contract": "1.0.1",
     "bignumber.js": "^5.0.0",
     "coveralls": "^3.0.1",
     "decimal.js": "^7.2.3",
