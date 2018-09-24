@@ -43,7 +43,6 @@ contract('Plasma', (accounts) => {
   describe('exitDeposit', () => {
 
     it('Wrap Ether & Deposit', async () => {
-      // This is the first test
       await etherToken.deposit({from: depositor, value: oneETH})
       await etherToken.approve(Plasma.address, oneETH, {from: depositor})
 
@@ -65,7 +64,7 @@ contract('Plasma', (accounts) => {
     })
 
     it('Rejected: Wrong amount (root != depositHash)', async () => {
-      // WEIRD PROBLEM - TODO: This test doesn't with with oneETH + 1!
+      // WEIRD PROBLEM - TODO: This test doesn't pass with with oneETH + 1!
       await assertRejects(plasma.startDepositExit(1000000000, 0, 1, {from: depositor}))
     })
 
@@ -81,7 +80,7 @@ contract('Plasma', (accounts) => {
   describe('submitBlock: Trivial Tests', () => {
 
     it('Only Operator', async () => {
-      await assertRejects(plasma.submitBlock(zeroHash, 0, {from: depositor}))
+      await assertRejects(plasma.submitBlock(zeroHash, 0, {from: depositor}), "block is also permitted from non-operator")
     })
 
     it('Empty Block', async () => {
