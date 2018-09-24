@@ -161,41 +161,39 @@ contract Plasma {
      * @param _blockType Type of block to be submitted.
      */
     function submitBlock(bytes32 _root, BlockType _blockType) public onlyOperator {
+        require(_blockType != BlockType.Deposit, "Deposits need to be submitted via main chain");
 
         // Place if statement as if it were a switch for each block type
         // enforcing order of blocks:
-        // BIG SWITCH:
         BlockType prevBlockType = childChain[currentChildBlock.sub(CHILD_BLOCK_INTERVAL)].blockType;
-
-        // This is arguably bad practice in agile development.
-        if (_blockType == BlockType.Transaction) {  // Transaction
+        if (_blockType == BlockType.Transaction) { 
             require(
-                prevBlockType == BlockType.Transaction || prevBlockType == BlockType.AuctionResult,
+                prevBlockType == BlockType.Transaction || prevBlockType == BlockType.AuctionOutput,
                 "Transaction block submitted is wrong order!"
             );
-        } else if (_blockType == BlockType.Order) {  // Order
+        } else if (_blockType == BlockType.Order) {
             require(
                 prevBlockType == BlockType.Transaction,
                 "Order block must come immediately after Transaction Block"
             );
-        } else if (_blockType == BlockType.OrderDoubleSign) {  // OrderDoubleSign
+        } else if (_blockType == BlockType.OrderDoubleSign) {
             require(
                 prevBlockType == BlockType.Order,
                 "Confirmation signatures must come immediately after Order Block"
             );
-        } else if (_blockType == BlockType.AuctionResult) {  // AuctionResult
+        } else if (_blockType == BlockType.AuctionResult) {
             require(
                 prevBlockType == BlockType.OrderDoubleSign,
                 "Auction Result must come immediately after DoubleSig Block"
             );
-        } else if (_blockType == BlockType.AuctionOutput) {  // AuctionOutput
+        } else if (_blockType == BlockType.AuctionOutput) {
             require(
                 prevBlockType == BlockType.AuctionResult,
                 "Auction Output must come immediately after Auction Result Block"
             );
         }
 
-        // THE REST!
+        // Create the block structure
         childChain[currentChildBlock] = ChildBlock({
             root: _root,
             timestamp: block.timestamp,

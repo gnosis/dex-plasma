@@ -39,6 +39,10 @@ let waitForNBlocks = async function(numBlocks, authority) {
   }
 }
 
+let encodeUtxoPosition = function(block, tx, oindex) {
+  return block * 10**9 + tx * 10**4 + oindex;
+}
+
 // Fast forward 1 week
 // let fastForward = async function() {
 //   let oldTime = (await web3.eth.getBlock(await web3.eth.blockNumber)).timestamp;
@@ -51,9 +55,10 @@ let waitForNBlocks = async function(numBlocks, authority) {
 
 
 module.exports = {
-    assertRejects: assertRejects,
-    catchError: catchError,
-    toHex: toHex,
-    waitForNBlocks: waitForNBlocks,
+    assertRejects,
+    catchError,
+    toHex,
+    waitForNBlocks,
+    encodeUtxoPosition,
     // fastForward: fastForward,
 };
