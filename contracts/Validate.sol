@@ -9,7 +9,7 @@ import "openzeppelin-solidity/contracts/ECRecovery.sol";
  * @dev Checks that the signatures on a transaction are valid
  */
 library Validate {
-    function checkSigs(bytes32 txHash, bytes32 rootHash, uint inputCount, bytes sigs)
+    function checkSigs(bytes32 txHash, bytes32 rootHash, uint256 inputCount, bytes sigs)
         internal
         view
         returns (bool)

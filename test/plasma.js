@@ -73,12 +73,11 @@ contract('Plasma', (accounts) => {
     })
 
     it('Good exitDeposit', async () => {
-      // TODO - get plasma.exits
-      before = (await plasma.exits.call(1))
+      before = (await plasma.exits.call(1000000000))
+      assert.equal(before[0], zeroHash);
       await plasma.startDepositExit(1000000000, 0, oneETH, {from: depositor})
-      after = (await plasma.exits.call(1))
-      // console.log(before[1].toNumber(), before[2].toNumber())
-      // console.log(after[1].toNumber(), after[2].toNumber())
+      after = (await plasma.exits.call(1000000000))
+      assert.equal(after[0], depositor);
     })
   })
 
