@@ -1,5 +1,5 @@
 let oneETH = 10**18
-
+const CHILD_BLOCK_INTERVAL = 1000
 
 const EtherToken = artifacts.require("EtherToken")
 const Plasma = artifacts.require("Plasma.sol")
@@ -73,7 +73,12 @@ contract('Plasma', (accounts) => {
     })
 
     it('Good exitDeposit', async () => {
+      // TODO - get plasma.exits
+      before = (await plasma.exits.call(1))
       await plasma.startDepositExit(1000000000, 0, oneETH, {from: depositor})
+      after = (await plasma.exits.call(1))
+      // console.log(before[1].toNumber(), before[2].toNumber())
+      // console.log(after[1].toNumber(), after[2].toNumber())
     })
   })
 
@@ -84,7 +89,10 @@ contract('Plasma', (accounts) => {
     })
 
     it('Empty Block', async () => {
-      txn = await plasma.submitBlock(zeroHash, 0, {from: operator})
+      before = (await plasma.currentChildBlock.call()).toNumber()
+      await plasma.submitBlock(zeroHash, 0, {from: operator})
+      after = (await plasma.currentChildBlock.call()).toNumber()
+      assert.equal(before + CHILD_BLOCK_INTERVAL, after)
     })
   })
 
@@ -94,6 +102,7 @@ contract('Plasma', (accounts) => {
       be_true = await plasma.bitmapHasOneAtSpot(0, one_zero)
       assert.equal(be_true, true)
       be_false = await plasma.bitmapHasOneAtSpot(1, one_zero)
+      assert.equal(be_false, false)
     })
 
     it('Index Out of Range', async () => {
