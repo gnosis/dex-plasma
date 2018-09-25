@@ -17,9 +17,11 @@ library Merkle {
         bytes32 computedHash = leaf;
 
         for (uint256 i = 32; i <= height*32; i += 32) {
+            /* solhint-disable no-inline-assembly */
             assembly {
                 proofElement := mload(add(proof, i))
             }
+            /* solhint-enable no-inline-assembly */
             if (index % 2 == 0) {
                 computedHash = keccak256(abi.encodePacked(computedHash, proofElement));
             } else {
