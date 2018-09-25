@@ -9,7 +9,8 @@
   "scripts": {
     "test": "truffle test",
     "coverage": "./node_modules/.bin/solidity-coverage",
-    "lint": "./node_modules/.bin/eslint ."
+    "lint": "./node_modules/.bin/eslint .",
+    "solhint": "./node_modules/.bin/solhint \"contracts/**/*.sol\""
   },
   "repository": {
     "type": "git",
@@ -44,6 +45,7 @@
     "eslint-plugin-standard": "^3.1.0",
     "ethereumjs-abi": "^0.6.5",
     "minimist": "^1.2.0",
+    "solhint": "^1.2.1",
     "solidity-coverage": "^0.5.4",
     "truffle": "4.1.14",
     "truffle-contract": "^3.0.5",

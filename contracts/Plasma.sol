@@ -12,7 +12,7 @@ import "./Validate.sol";
 import "@gnosis.pm/util-contracts/contracts/Token.sol";
 
 // TODO - remove these one by one!
-// solhint-disable not-rely-on-time, func-order, no-empty-blocks, separate-by-one-line-in-contract
+// solhint-disable not-rely-on-time, func-order, separate-by-one-line-in-contract
 
 /**
  * @title RootChain
@@ -203,7 +203,7 @@ contract Plasma {
         Token token = Token(listedTokens[tokenNr]);
         // Only allow up to CHILD_BLOCK_INTERVAL deposits per child block.
         require(currentDepositBlock < CHILD_BLOCK_INTERVAL, "Too many deposit blocks before next Transaction");
-        require(token.transferFrom(msg.sender, this, amount),  "Token transfer failure on deposit()");
+        require(token.transferFrom(msg.sender, this, amount), "Token transfer failure on deposit()");
 
         bytes32 root = keccak256(abi.encodePacked(msg.sender, token, amount));
         uint depositBlock = getDepositBlock();
@@ -222,7 +222,7 @@ contract Plasma {
      * @param _token Token type to deposit.
      * @param _amount Deposit amount.
      */
-    function startDepositExit(uint _depositPos, uint _token, uint _amount) public{
+    function startDepositExit(uint _depositPos, uint _token, uint _amount) public {
         uint blknum = _depositPos / 1000000000;
 
         require(blknum % CHILD_BLOCK_INTERVAL != 0, "UTXO provided is not a deposit");
@@ -377,8 +377,7 @@ contract Plasma {
         public payable
     {
         require(
-            indexes[0] < chainReset || chainReset == 0,
-            "OrderInput is expired! (i.e. older than chain-reset point)"
+            indexes[0] < chainReset || chainReset == 0, "OrderInput is expired! (i.e. older than chain-reset point)"
         );
 
         uint blknum = indexes[0] / 1000000000;
@@ -407,7 +406,7 @@ contract Plasma {
         if (_doubleSig.length == 0) {
             // bitmap needs to be already be provided
             require(
-                ASbitmap[blknum][txindex] > 0 && bitmapHasOneAtSpot(txindex, ASbitmap[blknum]),
+                aggregatedSignatureBitmap[blknum][txindex] > 0 && bitmapHasOneAtSpot(txindex, aggregatedSignatureBitmap[blknum]),
                 "TODO"
             );
         } else {
@@ -504,9 +503,9 @@ contract Plasma {
      */
 
     // blockNr => time
-    mapping (uint => uint) public ASrequests;
+    mapping (uint => uint) public aggregatedSignatureRequests;
     // blockNR => bitmap for Aggregated Signature
-    mapping (uint => bytes) public ASbitmap;
+    mapping (uint => bytes) public aggregatedSignatureBitmap;
 
     // function challengeAggregationSignature(
     //     uint blockNr,
@@ -730,6 +729,7 @@ contract Plasma {
     {
         RLPReader.RLPItem[] memory txList = RLPReader.toList(RLPReader.toRlpItem(challengingTxBytes));
         uint oIndexShift = oIndex * 3;
+        // solhint-disable-next-line max-line-length
         return RLPReader.toUint(txList[0 + oIndexShift]) + RLPReader.toUint(txList[1 + oIndexShift]) + RLPReader.toUint(txList[2 + oIndexShift]);
     }
 

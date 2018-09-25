@@ -10,5 +10,7 @@ pragma solidity ^0.4.21;
  
 // TODO: Use the same getter pattern also for dependencies
 import "@gnosis.pm/util-contracts/contracts/EtherToken.sol";
-contract DevDependencies {
+
+
+contract DevDependencies { // solhint-disable no-empty-blocks
 }
