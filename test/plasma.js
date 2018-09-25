@@ -11,7 +11,8 @@ const abi = require('ethereumjs-abi')
 const {
   assertRejects,
   toHex,
-  encodeUtxoPosition
+  encodeUtxoPosition,
+  BlockType,
 } = require('./utilities.js');
 
 contract('Plasma', (accounts) => {
@@ -78,15 +79,6 @@ contract('Plasma', (accounts) => {
   })
 
   describe('submitBlock', () => {
-    BlockType = {
-      Transaction: 0,
-      Deposit: 1,
-      Order: 2,
-      OrderDoubleSign: 3,
-      AuctionResult: 4,
-      AuctionOutput: 5,
-    }
-
     it('allows only the operator to submit blocks', async () => {
       const plasma = await Plasma.new(operator, 0x0)
       await assertRejects(plasma.submitBlock(zeroHash, 0, {from: depositor}), "block is also permitted from non-operator")
