@@ -1,6 +1,7 @@
-pragma solidity ^0.4.0;
+pragma solidity ^0.4.24;
 
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
+
 
 /**
  * @title PriorityQueue
@@ -9,8 +10,8 @@ import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 contract PriorityQueue {
     using SafeMath for uint256;
 
-    address owner;
-    uint256[] heapList;
+    address public owner;
+    uint256[] public heapList;
     uint256 public currentSize;
 
     modifier onlyOwner() {
