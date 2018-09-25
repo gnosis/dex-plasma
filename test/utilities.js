@@ -20,12 +20,12 @@ const assertRejects = async (q, msg) => {
   }
 }
 
-let catchError = function(promise) {
+const catchError = function(promise) {
   return promise.then(result => [null, result])
       .catch(err => [err]);
 };
 
-let toHex = function(buffer) {
+const toHex = function(buffer) {
     buffer = buffer.toString('hex');
     if (buffer.substring(0, 2) == '0x')
         return buffer;
@@ -33,10 +33,23 @@ let toHex = function(buffer) {
 };
 
 // Wait for n blocks to pass
-let waitForNBlocks = async function(numBlocks, authority) {
+const waitForNBlocks = async function(numBlocks, authority) {
   for (i = 0; i < numBlocks; i++) {
     await web3.eth.sendTransaction({from: authority, 'to': authority, value: 100});
   }
+}
+
+const encodeUtxoPosition = function(block, tx, oindex) {
+  return block * 10**9 + tx * 10**4 + oindex;
+}
+
+const BlockType = {
+  Transaction: 0,
+  Deposit: 1,
+  Order: 2,
+  OrderDoubleSign: 3,
+  AuctionResult: 4,
+  AuctionOutput: 5,
 }
 
 // Fast forward 1 week
@@ -51,9 +64,11 @@ let waitForNBlocks = async function(numBlocks, authority) {
 
 
 module.exports = {
-    assertRejects: assertRejects,
-    catchError: catchError,
-    toHex: toHex,
-    waitForNBlocks: waitForNBlocks,
+    assertRejects,
+    catchError,
+    toHex,
+    waitForNBlocks,
+    encodeUtxoPosition,
+    BlockType,
     // fastForward: fastForward,
 };
