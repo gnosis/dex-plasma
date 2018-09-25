@@ -12,7 +12,7 @@ import "./Validate.sol";
 import "@gnosis.pm/util-contracts/contracts/Token.sol";
 
 // TODO - remove these one by one!
-// solhint-disable not-rely-on-time, func-order, no-empty-blocks, separate-by-one-line-in-contract
+// solhint-disable not-rely-on-time, func-order, separate-by-one-line-in-contract
 
 /**
  * @title RootChain
