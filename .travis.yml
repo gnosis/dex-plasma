@@ -11,6 +11,7 @@ before_install:
   - npm install -g ganache-cli
 install:
   - npm install
+  - npm install -g solhint
   - truffle install bytes
 before_script:
   - ganache-cli --defaultBalanceEther 500000000 > /dev/null &

@@ -10,8 +10,11 @@ if [[ $TRAVIS_BRANCH = "master" || $TRAVIS_BRANCH = "develop" ]]; then
   echo " ==> RUNNING test"
   npm test;
 
-  echo " ==> RUNNING lint"
+  echo " ==> RUNNING JS lint"
   npm run lint;
+
+  echo " ==> RUNNING Solidity lint"
+  solhint "contracts/**/*.sol"
 else
   echo " ==> No execution for branches other than MASTER or DEVELOP"
 fi;
