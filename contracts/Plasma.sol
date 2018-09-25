@@ -406,7 +406,7 @@ contract Plasma {
         if (_doubleSig.length == 0) {
             // bitmap needs to be already be provided
             require(
-                aggSigBitmap[blknum][txindex] > 0 && bitmapHasOneAtSpot(txindex, aggSigBitmap[blknum]),
+                aggregatedSignatureBitmap[blknum][txindex] > 0 && bitmapHasOneAtSpot(txindex, aggregatedSignatureBitmap[blknum]),
                 "TODO"
             );
         } else {
@@ -503,9 +503,9 @@ contract Plasma {
      */
 
     // blockNr => time
-    mapping (uint => uint) public aggSigRequests;
+    mapping (uint => uint) public aggregatedSignatureRequests;
     // blockNR => bitmap for Aggregated Signature
-    mapping (uint => bytes) public aggSigBitmap;
+    mapping (uint => bytes) public aggregatedSignatureBitmap;
 
     // function challengeAggregationSignature(
     //     uint blockNr,
