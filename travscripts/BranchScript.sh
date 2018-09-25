@@ -9,6 +9,9 @@ if [[ $TRAVIS_BRANCH = "master" || $TRAVIS_BRANCH = "develop" ]]; then
   # running contracts tests
   echo " ==> RUNNING test"
   npm test;
+
+  echo " ==> RUNNING lint"
+  npm run lint;
 else
   echo " ==> No execution for branches other than MASTER or DEVELOP"
 fi;

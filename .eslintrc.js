@@ -16,7 +16,7 @@ module.exports = {
     "rules": {
         "indent": [
             "error",
-            4
+            2
         ],
         "linebreak-style": [
             "error",
@@ -29,6 +29,18 @@ module.exports = {
         "semi": [
             "error",
             "never"
+        ],
+        "prefer-const": [
+            "error",
+        ],
+        "no-var": [
+            "error",
         ]
-    }
+    },
+        "globals" : {
+        "artifacts": false,
+        "contract": false,
+        "assert": false,
+        "web3": false
+    },
 };

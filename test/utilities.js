@@ -1,5 +1,3 @@
-let RLP = require('rlp');
-
 /*
  How to avoid using try/catch blocks with promises' that could fail using async/await
  - https://blog.grossman.io/how-to-write-async-await-without-try-catch-blocks-in-javascript/
@@ -10,7 +8,7 @@ const assertRejects = async (q, msg) => {
   try {
     res = await q
     // checks if there was a Log event and its argument l contains string "R<number>"
-    catchFlag = res.logs && !!res.logs.find(log => log.event === 'Log' && /\bR(\d+\.?)+/.test(log.args.l))
+    catchFlag = res.logs && !!res.logs.find(log => log.event === "Log" && /\bR(\d+\.?)+/.test(log.args.l))
   } catch (e) {
     catchFlag = true
   } finally {
@@ -22,25 +20,25 @@ const assertRejects = async (q, msg) => {
 
 const catchError = function(promise) {
   return promise.then(result => [null, result])
-      .catch(err => [err]);
-};
+    .catch(err => [err])
+}
 
 const toHex = function(buffer) {
-    buffer = buffer.toString('hex');
-    if (buffer.substring(0, 2) == '0x')
-        return buffer;
-    return '0x' + buffer.toString('hex');
-};
+  buffer = buffer.toString("hex")
+  if (buffer.substring(0, 2) == "0x")
+    return buffer
+  return "0x" + buffer.toString("hex")
+}
 
 // Wait for n blocks to pass
 const waitForNBlocks = async function(numBlocks, authority) {
-  for (i = 0; i < numBlocks; i++) {
-    await web3.eth.sendTransaction({from: authority, 'to': authority, value: 100});
+  for (let i = 0; i < numBlocks; i++) {
+    await web3.eth.sendTransaction({from: authority, "to": authority, value: 100})
   }
 }
 
 const encodeUtxoPosition = function(block, tx, oindex) {
-  return block * 10**9 + tx * 10**4 + oindex;
+  return block * 10**9 + tx * 10**4 + oindex
 }
 
 const BlockType = {
@@ -64,11 +62,11 @@ const BlockType = {
 
 
 module.exports = {
-    assertRejects,
-    catchError,
-    toHex,
-    waitForNBlocks,
-    encodeUtxoPosition,
-    BlockType,
-    // fastForward: fastForward,
-};
+  assertRejects,
+  catchError,
+  toHex,
+  waitForNBlocks,
+  encodeUtxoPosition,
+  BlockType,
+  // fastForward: fastForward,
+}
