@@ -14,7 +14,7 @@ if [[ $TRAVIS_BRANCH = "master" || $TRAVIS_BRANCH = "develop" ]]; then
   npm run lint;
 
   echo " ==> RUNNING Solidity lint"
-  solhint "contracts/**/*.sol"
+  npm run solhint
 else
   echo " ==> No execution for branches other than MASTER or DEVELOP"
 fi;
