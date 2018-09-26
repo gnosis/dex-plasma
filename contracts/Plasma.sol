@@ -23,9 +23,6 @@ contract Plasma {
     using Merkle for bytes32;
     using Math for uint;
 
-    /*
-     * Events
-     */
     event Deposit(
         address indexed depositor,
         uint indexed depositBlock,
@@ -56,9 +53,6 @@ contract Plasma {
         uint blockNumber
     );
 
-    /*
-     * Storage
-     */
      // same structs as in library, bad practice
     struct ExitingTx {
         address exitor;
@@ -115,17 +109,11 @@ contract Plasma {
         BlockType blockType; 
     }
 
-    /*
-     * Modifiers
-     */
     modifier onlyOperator() {
         require(msg.sender == operator, "Sender is not Operator!");
         _;
     }
 
-    /*
-     * Constructor
-     */
     constructor (address _operator, address wrappedETH) public {
         operator = _operator;
         currentChildBlock = CHILD_BLOCK_INTERVAL;
@@ -137,9 +125,6 @@ contract Plasma {
         exitsQueues[0] = address(new PriorityQueue());
     }
 
-    /*
-     * Public Functions
-     */
     /**
      * @dev Allows Plasma chain operator to submit block root.
      * @param _root The root of a child chain block.
@@ -622,9 +607,6 @@ contract Plasma {
         }
     }
 
-    /*
-     * Public view functions
-     */
     /**
      * @dev Queries the child chain.
      * @param _blockNumber Number of the block to return.
@@ -655,9 +637,6 @@ contract Plasma {
         return (exits[_utxoPos].owner, exits[_utxoPos].token, exits[_utxoPos].amount);
     }
 
-    /*
-     * Private functions
-     */
     /**
      * @dev Adds an exit to the exit queue.
      * @param _utxoPos Position of the UTXO in the child chain.
