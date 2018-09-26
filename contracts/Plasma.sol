@@ -12,7 +12,7 @@ import "./Validate.sol";
 import "@gnosis.pm/util-contracts/contracts/Token.sol";
 
 // TODO - remove these one by one!
-// solhint-disable not-rely-on-time, func-order, separate-by-one-line-in-contract
+// solhint-disable not-rely-on-time, func-order
 
 /**
  * @title RootChain
@@ -26,7 +26,6 @@ contract Plasma {
     /*
      * Events
      */
-
     event Deposit(
         address indexed depositor,
         uint indexed depositBlock,
@@ -119,7 +118,6 @@ contract Plasma {
     /*
      * Modifiers
      */
-
     modifier onlyOperator() {
         require(msg.sender == operator, "Sender is not Operator!");
         _;
@@ -128,7 +126,6 @@ contract Plasma {
     /*
      * Constructor
      */
-
     constructor (address _operator, address wrappedETH) public {
         operator = _operator;
         currentChildBlock = CHILD_BLOCK_INTERVAL;
@@ -140,11 +137,9 @@ contract Plasma {
         exitsQueues[0] = address(new PriorityQueue());
     }
 
-
     /*
      * Public Functions
      */
-
     /**
      * @dev Allows Plasma chain operator to submit block root.
      * @param _root The root of a child chain block.
@@ -235,7 +230,6 @@ contract Plasma {
 
         addExitToQueue(_depositPos, msg.sender, _token, _amount, childChain[blknum].timestamp);
     }
-
 
     /**
      * @dev Starts to exit a specified utxo.
@@ -358,7 +352,6 @@ contract Plasma {
         // Delete the owner but keep the amount to prevent another exit.
         delete exits[eUtxoPos].owner;
     }
-
 
     /**
      * @dev Starts to exit a specified order input */
@@ -497,11 +490,9 @@ contract Plasma {
     //     public
     // {
     // }
-
     /**
      * Challenge crypto-economic aggregation signature
      */
-
     // blockNr => time
     mapping (uint => uint) public aggregatedSignatureRequests;
     // blockNR => bitmap for Aggregated Signature
@@ -516,7 +507,6 @@ contract Plasma {
     // {
     //     // TODO
     // }
-
     // function completeASChallenge(
     //     uint blockNr,
     //     uint indexOfIncorrectSig
@@ -525,7 +515,6 @@ contract Plasma {
     // {
     //     // TODO
     // }
-
     // function provideSigForASChallenge(
     //     uint blockNr,
     //     uint indexOfIncorrectSig,
@@ -536,13 +525,9 @@ contract Plasma {
     // {
     //     // TODO
     // }
-
     /*
      * Function to ask for specific data piece:
      */
-
-
-
     /**
      * @dev Anyone can provde the volume, if the exits request could not provide the trading volume
      * @param queueNr unique reference for the exit
@@ -557,7 +542,6 @@ contract Plasma {
     // {
     //     // TODO
     // }
-
     /**
      * @dev Allows anyone to challenge an exiting transaction by submitting proof of a double spend on the child chain.
      * @param _cUtxoPos The position of the challenging utxo.
@@ -638,11 +622,9 @@ contract Plasma {
         }
     }
 
-
     /*
      * Public view functions
      */
-
     /**
      * @dev Queries the child chain.
      * @param _blockNumber Number of the block to return.
@@ -676,7 +658,6 @@ contract Plasma {
     /*
      * Private functions
      */
-
     /**
      * @dev Adds an exit to the exit queue.
      * @param _utxoPos Position of the UTXO in the child chain.
@@ -711,7 +692,7 @@ contract Plasma {
 
         emit ExitStarted(msg.sender, _utxoPos, _token, _amount);
     }
-    event DebugBytes(bytes a, uint b);
+    
     function bitmapHasOneAtSpot(
         uint index,
         bytes bitmap

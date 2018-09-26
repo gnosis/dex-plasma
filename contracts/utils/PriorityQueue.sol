@@ -61,9 +61,6 @@ contract PriorityQueue {
         return _splitElement(retVal);
     }
 
-    /*
-     * Private functions
-     */
     /**
      * @dev Determines the minimum child of a given node in the tree.
      * @param _index Index of the node in the tree.
