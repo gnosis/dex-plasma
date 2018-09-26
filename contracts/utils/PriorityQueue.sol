@@ -1,7 +1,6 @@
 pragma solidity ^0.4.24;
 
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
-// solhint-disable separate-by-one-line-in-contract
 
 
 /**
@@ -61,11 +60,6 @@ contract PriorityQueue {
         heapList.length = heapList.length.sub(1);
         return _splitElement(retVal);
     }
-
-
-    /*
-     * Private functions
-     */
 
     /**
      * @dev Determines the minimum child of a given node in the tree.

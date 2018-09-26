@@ -4,4 +4,5 @@ pragma solidity ^0.4.24;
 // available when working from truffle console.
 import "@gnosis.pm/mock-contract/contracts/MockContract.sol";
 
-contract Import {} // Needed for coverage to not fail
+
+contract Import {} // solhint-disable no-empty-blocks
