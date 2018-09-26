@@ -7,11 +7,16 @@ const MockContract = artifacts.require("./MockContract.sol")
 const EtherToken = artifacts.require("EtherToken.sol")
 const Plasma = artifacts.require("Plasma.sol")
 const abi = require("ethereumjs-abi")
+const MerkleTree = require("merkletreejs")
+const { sha3 } = require("ethereumjs-util")
 
 const {
   assertRejects,
   encodeUtxoPosition,
   BlockType,
+  rlpEncodeTransaction,
+  fromHex,
+  toHex,
 } = require("./utilities.js")
 
 contract("Plasma", (accounts) => {
@@ -191,6 +196,43 @@ contract("Plasma", (accounts) => {
       await assertRejects(plasma.submitBlock(zeroHash, BlockType.AuctionOutput, {from: operator}))
     })
   })
+
+  describe("exitTransaction", () => {
+    it("can exit a valid transaction", async () => {
+      const plasma = await Plasma.new(operator, 0x0)
+
+      // Generate Transaction
+      const outputIndex = 0
+      const txIndex = 0
+      const tx = rlpEncodeTransaction(operator, 0, 10, 0, outputIndex)
+      const txHash = sha3(tx)
+      const txSignature = await web3.eth.sign(operator, toHex(txHash)) + "00".repeat(65)
+      const signedTxHash = sha3(Buffer.concat([txHash, fromHex(txSignature)]))
+      
+      // Generate Merkle Tree with the signed transaction at txIndex
+      let txs = Array(2**16).fill(sha3(0x0))
+      txs[txIndex] = signedTxHash
+      const tree = new MerkleTree(txs, sha3)
+
+      // Submit Merkle Root
+      const blknum = (await plasma.currentChildBlock.call()).toNumber()
+      await plasma.submitBlock(toHex(tree.getRoot()), BlockType.Transaction)
+
+      // Generate double signature
+      const confirmationHash = sha3(toHex(Buffer.concat([txHash, tree.getRoot()])))
+      const confSignature = await web3.eth.sign(operator, toHex(confirmationHash))
+      const doubleSignature = txSignature + confSignature.slice(2)
+
+      // Attempt exit for submitted block
+      const utxoPosition = encodeUtxoPosition(blknum, outputIndex, txIndex)
+      const proof = Buffer.concat(tree.getProof(txs[txIndex]).map(x => x.data))
+      await plasma.startTransactionExit(utxoPosition, toHex(tx), toHex(proof), doubleSignature)
+    })
+
+    it("cannot exit someone else's UTXO", async () => {
+      // TODO
+    })
+  });
 
   describe("bitmapHasOneAtSpot:", () => {
     it("True & False", async () => {

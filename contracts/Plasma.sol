@@ -78,9 +78,6 @@ contract Plasma {
     uint public currentChildBlock;
     uint public currentDepositBlock;
     uint public currentFeeExit;
-    // the chain can be reset to a certain blockheight, when the operator does not provide any data. 
-    // chainRest = 0 equals to no chain reset
-    uint public chainReset = 0;
 
     mapping (uint => ChildBlock) public childChain;
     mapping (uint => Exit) public exits;
@@ -235,8 +232,6 @@ contract Plasma {
         uint txindex = (_utxoPos % 1000000000) / 10000;
         uint oindex = _utxoPos - blknum * 1000000000 - txindex * 10000; 
 
-        require(_utxoPos < chainReset || chainReset == 0, "UTXO is expired! (i.e. older than chain-reset point)");
-
         ExitingTx memory exitingTx = createExitingTx(_txBytes, oindex);
         require(msg.sender == exitingTx.exitor, "Sender does not own UTXO");
 
@@ -247,7 +242,6 @@ contract Plasma {
             Validate.checkSigs(keccak256(_txBytes), root, exitingTx.inputCount, _sigs),
             "Failed Signature check on transaction exit. Bad double signature?"
         );
-
         require(merkleHash.checkMembership(txindex, root, _proof, 16), "Failed Merkle Membership check.");
 
         addExitToQueue(_utxoPos, exitingTx.exitor, exitingTx.token, exitingTx.amount, childChain[blknum].timestamp);
@@ -354,9 +348,6 @@ contract Plasma {
     )
         public payable
     {
-        require(
-            indexes[0] < chainReset || chainReset == 0, "OrderInput is expired! (i.e. older than chain-reset point)"
-        );
 
         uint blknum = indexes[0] / 1000000000;
         uint txindex = (indexes[0] % 1000000000) / 10000;

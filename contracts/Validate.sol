@@ -23,13 +23,13 @@ library Validate {
         bool check1 = true;
         bool check2 = true;
 
-        address txHashSig1 = ECRecovery.recover(txHash, sig1);
-        check1 = txHashSig1 != 0 && txHashSig1 == ECRecovery.recover(confirmationHash, confSig1);
+        address txHashSig1 = ECRecovery.recover(ECRecovery.toEthSignedMessageHash(txHash), sig1);
+        check1 = txHashSig1 != 0 && txHashSig1 == ECRecovery.recover(ECRecovery.toEthSignedMessageHash(confirmationHash), confSig1);
 
         if (inputCount > 0) {
             bytes memory confSig2 = BytesLib.slice(sigs, 195, 65);
             address txHashSig2 = ECRecovery.recover(txHash, sig2);
-            check2 = txHashSig2 != 0 && txHashSig2 == ECRecovery.recover(confirmationHash, confSig2);
+            check2 = txHashSig2 != 0 && txHashSig2 == ECRecovery.recover(ECRecovery.toEthSignedMessageHash(confirmationHash), confSig2);
         }
         return check1 && check2;
     }

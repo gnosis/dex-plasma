@@ -1,3 +1,5 @@
+const RLP = require('rlp');
+
 /*
  How to avoid using try/catch blocks with promises' that could fail using async/await
  - https://blog.grossman.io/how-to-write-async-await-without-try-catch-blocks-in-javascript/
@@ -30,6 +32,10 @@ const toHex = function(buffer) {
   return "0x" + buffer.toString("hex")
 }
 
+const fromHex = function(hexString) {
+  return Buffer.from(hexString.slice(2), "hex")
+}
+
 // Wait for n blocks to pass
 const waitForNBlocks = async function(numBlocks, authority) {
   for (let i = 0; i < numBlocks; i++) {
@@ -50,6 +56,18 @@ const BlockType = {
   AuctionOutput: 5,
 }
 
+const rlpEncodeTransaction = function(exitor, token, amount, inputCount, oindex) {
+  let list = [inputCount, null, null, null, null, null, token, null, null, null, null]
+  if (oindex) {
+    list[9] = exitor
+    list[10] = amount
+  } else {
+    list[7] = exitor
+    list[8] = amount
+  }
+  return RLP.encode(list)
+}
+
 // Fast forward 1 week
 // let fastForward = async function() {
 //   let oldTime = (await web3.eth.getBlock(await web3.eth.blockNumber)).timestamp;
@@ -64,9 +82,11 @@ const BlockType = {
 module.exports = {
   assertRejects,
   catchError,
+  fromHex,
   toHex,
   waitForNBlocks,
   encodeUtxoPosition,
   BlockType,
+  rlpEncodeTransaction,
   // fastForward: fastForward,
 }
