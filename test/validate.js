@@ -2,8 +2,10 @@ const ValidateWrapper = artifacts.require("ValidateWrapper")
 
 const {
   assertRejects,
-  toHex
+  keccak256
 } = require("./utilities.js")
+
+// const { sha3 } = require("ethereumjs-util")
 
 contract("Validate", (accounts) => {
   const zeroHash32 = "0x" + "00".repeat(32)
@@ -27,32 +29,36 @@ contract("Validate", (accounts) => {
       assert.equal(res, false)
     })
 
-    // it("Test checkSigs naive", async () => {
-    //   const validator = await ValidateWrapper.new()
-    //   const signer = accounts[5]
-    //   const invalidSigner = accounts[6]
+    it("Basic Pass & Fail: Single Input", async () => {
+      const validator = await ValidateWrapper.new()
 
-    //   const txHash = web3.sha3("tx bytes to be hashed")
-    //   const sigs = await web3.eth.sign(signer, txHash)
+      const signer = accounts[1]
+      const invalidSigner = accounts[2]
 
-    //   // sigs += Buffer.alloc(65).toString("hex")
+      const txHash = web3.sha3("tx bytes to be hashed")
+      let sigs = await web3.eth.sign(signer, txHash)
 
-    //   const confirmationHash = web3.sha3("merkle leaf hash concat with root hash")
+      // padding with zeros because only one txn input
+      sigs += Buffer.alloc(65).toString("hex")
+      const rootHash = web3.sha3("merkle root hash")
 
-    //   const confirmSignatures = await web3.eth.sign(signer, confirmationHash)
+      const confirmHash = keccak256(txHash, rootHash)
 
-    //   const invalidConfirmSignatures = await web3.eth.sign(invalidSigner, confirmationHash)
-    //   // assert valid confirmSignatures will pass checkSigs
-    //   assert.isTrue(
-    //     await validator.checkSigs.call(txHash, toHex(confirmationHash), 0, toHex(sigs + confirmSignatures.slice(2))), 
-    //     "checkSigs should pass."
-    //   )
+      const confirmSignature = await web3.eth.sign(signer, confirmHash)
+      const invalidConfirmSignature = await web3.eth.sign(invalidSigner, confirmHash)
 
-    //   // assert invalid confirmSignatures will not pass checkSigs
-    //   assert.isFalse(
-    //     await validator.checkSigs.call(txHash, toHex(confirmationHash), 0, toHex(sigs), toHex(invalidConfirmSignatures)), 
-    //     "checkSigs should not pass given invalid confirmSignatures."
-    //   )
-    // })
+      // assert valid confirmSignatures will pass checkSigs
+      assert.isTrue(
+        await validator.checkSigs.call(txHash, rootHash, 0, sigs + confirmSignature.slice(2)),
+        "checkSigs should pass."
+      )
+
+      // // assert invalid confirmSignatures will not pass checkSigs
+      assert.isFalse(
+        await validator.checkSigs.call(txHash, rootHash, 0, sigs + invalidConfirmSignature.slice(2)), 
+        "checkSigs should not pass given invalid confirmSignatures."
+      )
+    })
   })
+
 })
