@@ -3,7 +3,7 @@
 const truffleConfig = require("@gnosis.pm/util-contracts/src/util/truffleConfig")
 
 const DEFAULT_GAS_PRICE_GWEI = 5
-const GAS_LIMIT = 8e6
+const GAS_LIMIT = 6.5e6
 const DEFAULT_MNEMONIC = "candy maple cake sugar pudding cream honey rich smooth crumble sweet treat"
 
 // Get the mnemonic
