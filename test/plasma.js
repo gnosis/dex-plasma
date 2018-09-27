@@ -7,16 +7,15 @@ const MockContract = artifacts.require("./MockContract.sol")
 const EtherToken = artifacts.require("EtherToken.sol")
 const Plasma = artifacts.require("Plasma.sol")
 const abi = require("ethereumjs-abi")
-const MerkleTree = require("merkletreejs")
-const { sha3 } = require("ethereumjs-util")
 
 const {
   assertRejects,
   encodeUtxoPosition,
   BlockType,
-  rlpEncodeTransaction,
-  fromHex,
   toHex,
+  generateTransaction,
+  generateDoubleSignature,
+  generateMerkleTree,
 } = require("./utilities.js")
 
 contract("Plasma", (accounts) => {
@@ -204,33 +203,144 @@ contract("Plasma", (accounts) => {
       // Generate Transaction
       const outputIndex = 0
       const txIndex = 0
-      const tx = rlpEncodeTransaction(operator, 0, 10, 0, outputIndex)
-      const txHash = sha3(tx)
-      const txSignature = await web3.eth.sign(operator, toHex(txHash)) + "00".repeat(65)
-      const signedTxHash = sha3(Buffer.concat([txHash, fromHex(txSignature)]))
-      
-      // Generate Merkle Tree with the signed transaction at txIndex
-      const txs = Array(2**16).fill(sha3(0x0))
-      txs[txIndex] = signedTxHash
-      const tree = new MerkleTree(txs, sha3)
+      const tx = await generateTransaction(operator, 0, 10, 0, outputIndex)
+      const tree = generateMerkleTree(txIndex, tx.signedTxHash)
+      const doubleSignature = await generateDoubleSignature(tx, tree, operator)
 
       // Submit Merkle Root
       const blknum = (await plasma.currentChildBlock.call()).toNumber()
       await plasma.submitBlock(toHex(tree.getRoot()), BlockType.Transaction)
 
-      // Generate double signature
-      const confirmationHash = sha3(toHex(Buffer.concat([txHash, tree.getRoot()])))
-      const confSignature = await web3.eth.sign(operator, toHex(confirmationHash))
-      const doubleSignature = txSignature + confSignature.slice(2)
-
       // Attempt exit for submitted block
       const utxoPosition = encodeUtxoPosition(blknum, outputIndex, txIndex)
-      const proof = Buffer.concat(tree.getProof(txs[txIndex]).map(x => x.data))
-      await plasma.startTransactionExit(utxoPosition, toHex(tx), toHex(proof), doubleSignature)
+      const proof = Buffer.concat(tree.getProof(tx.signedTxHash).map(x => x.data))
+      await plasma.startTransactionExit(utxoPosition, tx.tx, toHex(proof), doubleSignature)
+
+      // Inspect exit
+      const exit = await plasma.getExit.call(utxoPosition)
+      assert.equal(exit[0], operator)
+      assert.equal(exit[1], 0) // Token
+      assert.equal(exit[2], 10) // Amount
     })
 
     it("cannot exit someone else's UTXO", async () => {
-      // TODO
+      const plasma = await Plasma.new(operator, 0x0)
+
+      // Generate Transaction
+      const outputIndex = 0
+      const txIndex = 0
+      const tx = await generateTransaction(operator, 0, 10, 0, outputIndex)
+      const tree = generateMerkleTree(txIndex, tx.signedTxHash)
+      const doubleSignature = await generateDoubleSignature(tx, tree, operator)
+
+      // Submit Merkle Root
+      const blknum = (await plasma.currentChildBlock.call()).toNumber()
+      await plasma.submitBlock(toHex(tree.getRoot()), BlockType.Transaction)
+
+      // Attempt exit for submitted block as DEPOSITOR (instead of operator)
+      const utxoPosition = encodeUtxoPosition(blknum, outputIndex, txIndex)
+      const proof = Buffer.concat(tree.getProof(tx.signedTxHash).map(x => x.data))
+      await assertRejects(
+        plasma.startTransactionExit(
+          utxoPosition, tx.tx, toHex(proof), doubleSignature, {from: depositor}
+        )
+      )
+    })
+
+    it("cannot exit own transaction with signatures not matching", async () => {
+      const plasma = await Plasma.new(operator, 0x0)
+
+      // Generate Transaction
+      const outputIndex = 0
+      const txIndex = 0
+
+      // Double signature != txSignature
+      const tx = await generateTransaction(operator, 0, 10, 0, outputIndex)
+      const tree = generateMerkleTree(txIndex, tx.signedTxHash)
+      const doubleSignature = await generateDoubleSignature(tx, tree, depositor)
+
+      // Submit Merkle Root
+      const blknum = (await plasma.currentChildBlock.call()).toNumber()
+      await plasma.submitBlock(toHex(tree.getRoot()), BlockType.Transaction)
+
+      // Attempt exit for submitted block
+      const utxoPosition = encodeUtxoPosition(blknum, outputIndex, txIndex)
+      const proof = Buffer.concat(tree.getProof(tx.signedTxHash).map(x => x.data))
+      await assertRejects(
+        plasma.startTransactionExit(utxoPosition, tx.tx, toHex(proof), doubleSignature)
+      )
+    })
+
+    it("cannot exit transaction with invalid proof", async () => {
+      const plasma = await Plasma.new(operator, 0x0)
+
+      // Generate two Transactions
+      const outputIndex = 0
+      const txIndex = 0
+      const otherTxIndex = 1
+      const tx = await generateTransaction(operator, 0, 10, 0, outputIndex)
+      const otherTx = await generateTransaction(operator, 0, 11, 0, outputIndex)
+
+      const tree = generateMerkleTree(txIndex, tx.signedTxHash, otherTxIndex, otherTx.signedTxHash)
+      const doubleSignature = await generateDoubleSignature(tx, tree, operator)
+
+      // Submit Merkle Root
+      const blknum = (await plasma.currentChildBlock.call()).toNumber()
+      await plasma.submitBlock(toHex(tree.getRoot()), BlockType.Transaction)
+
+      // Attempt exit for tx with proof of otherTx
+      const utxoPosition = encodeUtxoPosition(blknum, outputIndex, txIndex)
+      const proof = Buffer.concat(tree.getProof(otherTx.signedTxHash).map(x => x.data))
+      await assertRejects(
+        plasma.startTransactionExit(utxoPosition, tx.tx, toHex(proof), doubleSignature)
+      )
+    })
+
+    it("cannot exit an unregistered token", async () => {
+      const plasma = await Plasma.new(operator, 0x0)
+
+      // Generate Transaction
+      const outputIndex = 0
+      const txIndex = 0
+      const tx = await generateTransaction(operator, 1 /* unregistered token */, 10, 0, outputIndex)
+      const tree = generateMerkleTree(txIndex, tx.signedTxHash)
+      const doubleSignature = await generateDoubleSignature(tx, tree, operator)
+
+      // Submit Merkle Root
+      const blknum = (await plasma.currentChildBlock.call()).toNumber()
+      await plasma.submitBlock(toHex(tree.getRoot()), BlockType.Transaction)
+
+      // Attempt exit for submitted block
+      const utxoPosition = encodeUtxoPosition(blknum, outputIndex, txIndex)
+      const proof = Buffer.concat(tree.getProof(tx.signedTxHash).map(x => x.data))
+      await assertRejects(
+        plasma.startTransactionExit(utxoPosition, tx.tx, toHex(proof), doubleSignature)
+      )
+    })
+
+    it("cannot exit a transaction twice", async () => {
+      const plasma = await Plasma.new(operator, 0x0)
+
+      // Generate Transaction
+      const outputIndex = 0
+      const txIndex = 0
+      const tx = await generateTransaction(operator, 0, 10, 0, outputIndex)
+      const tree = generateMerkleTree(txIndex, tx.signedTxHash)
+      const doubleSignature = await generateDoubleSignature(tx, tree, operator)
+
+      // Submit Merkle Root
+      const blknum = (await plasma.currentChildBlock.call()).toNumber()
+      await plasma.submitBlock(toHex(tree.getRoot()), BlockType.Transaction)
+
+      // Exit for submitted block
+      const utxoPosition = encodeUtxoPosition(blknum, outputIndex, txIndex)
+      const proof = Buffer.concat(tree.getProof(tx.signedTxHash).map(x => x.data))
+      await plasma.startTransactionExit(utxoPosition, tx.tx, toHex(proof), doubleSignature)
+
+      // Attempt same exit again
+      await assertRejects(
+        plasma.startTransactionExit(utxoPosition, tx.tx, toHex(proof), doubleSignature)
+      )
     })
   })
 

@@ -1,4 +1,6 @@
-const RLP = require('rlp');
+const RLP = require("rlp")
+const { sha3 } = require("ethereumjs-util")
+const MerkleTree = require("merkletreejs")
 
 /*
  How to avoid using try/catch blocks with promises' that could fail using async/await
@@ -56,8 +58,54 @@ const BlockType = {
   AuctionOutput: 5,
 }
 
+/**
+ * Generates a transaction object for the given parameters.
+ * The object consists of:
+ * 1.) the RLP representation of that transaction (as a hex string)
+ * 2.) the hash of that representation
+ * 3.) the signature of that transaction signed by signer (exitor if signer is not specified)
+ * 4.) the hash of the concetanation of txHash and signature (leaf element in the plasma merkle tree)
+ */
+const generateTransaction = async function(exitor, token, amount, inputCount, oindex, signer) {
+  if (!signer) {
+    signer = exitor
+  }
+  const tx = rlpEncodeTransaction(exitor, token, amount, inputCount, oindex)
+  const txHash = sha3(tx)
+  const txSignature = await web3.eth.sign(signer, toHex(txHash)) + "00".repeat(65)
+  const signedTxHash = sha3(Buffer.concat([txHash, fromHex(txSignature)]))
+  return {
+    tx: toHex(tx),
+    txHash,
+    txSignature,
+    signedTxHash,
+  }
+}
+
+/**
+ * Given an existing tx including a signature and the tree this transaction appears in,
+ * this function generates and returns the concatenated double signature.
+ */
+const generateDoubleSignature = async function(tx, tree, signer) {
+  const confirmationHash = sha3(toHex(Buffer.concat([tx.txHash, tree.getRoot()])))
+  const confSignature = await web3.eth.sign(signer, toHex(confirmationHash))
+  return tx.txSignature + confSignature.slice(2)
+}
+
+/**
+ * Given a sequence of index1, elements1, ..., indexN elementN this function returns 
+ * the corresponding MerkleTree of height 16.
+ */
+const generateMerkleTree = function(...args) {
+  const txs = Array(2**16).fill(sha3(0x0))
+  for (let i=0; i<args.length; i+=2) {
+    txs[args[i]] = args[i+1]
+  }
+  return new MerkleTree(txs, sha3)
+}
+
 const rlpEncodeTransaction = function(exitor, token, amount, inputCount, oindex) {
-  let list = [inputCount, null, null, null, null, null, token, null, null, null, null]
+  const list = [inputCount, null, null, null, null, null, token, null, null, null, null]
   if (oindex) {
     list[9] = exitor
     list[10] = amount
@@ -88,5 +136,8 @@ module.exports = {
   encodeUtxoPosition,
   BlockType,
   rlpEncodeTransaction,
+  generateTransaction,
+  generateDoubleSignature,
+  generateMerkleTree,
   // fastForward: fastForward,
 }
