@@ -4,8 +4,6 @@ STAGED_JS_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep ".jsx\{
 STAGED_SOL_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep ".sol")
 ESLINT="$(git rev-parse --show-toplevel)/node_modules/.bin/eslint"
 
-printf STAGED_SOL_FILES
-
 if [[ ("$STAGED_JS_FILES" = "") && ("$STAGED_SOL_FILES" = "") ]]; then
   exit 0
 fi
