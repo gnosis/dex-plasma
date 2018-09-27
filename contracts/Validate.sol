@@ -26,7 +26,7 @@ library Validate {
 
         bool check1 = txHashSig1 == ECRecovery.recover(ECRecovery.toEthSignedMessageHash(confirmationHash), confSig1);
 
-        if (inputCount > 0) {
+        if (inputCount > 0 && check1) {  // && allows us to short circuit if check1 is already false.
             bytes memory sig2 = BytesLib.slice(sigs, 65, 65);
             bytes memory confSig2 = BytesLib.slice(sigs, 195, 65);
 
