@@ -25,8 +25,7 @@ contract("Validate", (accounts) => {
 
     it("Fail: signatures not correct", async () => {
       const validator = await ValidateWrapper.new()
-      const res = await validator.checkSigs.call(zeroHash32, zeroHash32, 0, zeroSig195)
-      assert.equal(res, false)
+      await assertRejects(validator.checkSigs(zeroHash32, zeroHash32, 0, zeroSig195))
     })
 
     it("Basic Pass & Fail: Single Input", async () => {
