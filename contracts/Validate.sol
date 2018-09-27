@@ -20,16 +20,18 @@ library Validate {
         bytes memory confSig1 = BytesLib.slice(sigs, 130, 65);
         bytes32 confirmationHash = keccak256(abi.encodePacked(txHash, rootHash));
 
-        bool check1 = true;
         bool check2 = true;
 
         address txHashSig1 = ECRecovery.recover(ECRecovery.toEthSignedMessageHash(txHash), sig1);
-        check1 = txHashSig1 != 0 && txHashSig1 == ECRecovery.recover(ECRecovery.toEthSignedMessageHash(confirmationHash), confSig1);
+        require(txHashSig1 != 0, "Error 1: occured while evaluating ecrecover on transaction-sig1");
+
+        bool check1 = txHashSig1 == ECRecovery.recover(ECRecovery.toEthSignedMessageHash(confirmationHash), confSig1);
 
         if (inputCount > 0) {
             bytes memory confSig2 = BytesLib.slice(sigs, 195, 65);
             address txHashSig2 = ECRecovery.recover(txHash, sig2);
-            check2 = txHashSig2 != 0 && txHashSig2 == ECRecovery.recover(ECRecovery.toEthSignedMessageHash(confirmationHash), confSig2);
+            require(txHashSig2 != 0, "Error 2: while evaluating ecrecover on transaction-sig2");
+            check2 = txHashSig2 == ECRecovery.recover(ECRecovery.toEthSignedMessageHash(confirmationHash), confSig2);
         }
         return check1 && check2;
     }

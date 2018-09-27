@@ -210,7 +210,7 @@ contract("Plasma", (accounts) => {
       const signedTxHash = sha3(Buffer.concat([txHash, fromHex(txSignature)]))
       
       // Generate Merkle Tree with the signed transaction at txIndex
-      let txs = Array(2**16).fill(sha3(0x0))
+      const txs = Array(2**16).fill(sha3(0x0))
       txs[txIndex] = signedTxHash
       const tree = new MerkleTree(txs, sha3)
 
@@ -232,7 +232,7 @@ contract("Plasma", (accounts) => {
     it("cannot exit someone else's UTXO", async () => {
       // TODO
     })
-  });
+  })
 
   describe("bitmapHasOneAtSpot:", () => {
     it("True & False", async () => {
