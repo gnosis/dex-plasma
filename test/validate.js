@@ -76,24 +76,40 @@ contract("Validate", (accounts) => {
       const rootHash = web3.sha3("merkle root hash")
       const confirmHash = keccak256(txHash, rootHash)
 
-      const confirmSignature1 = await web3.eth.sign(signer1, confirmHash)
-      const confirmSignature2 = await web3.eth.sign(signer2, confirmHash)
+      const confirmSignature1 = (await web3.eth.sign(signer1, confirmHash)).slice(2)
+      const confirmSignature2 = (await web3.eth.sign(signer2, confirmHash)).slice(2)
 
-      const confirmSigs = confirmSignature1 + confirmSignature2.slice(2)
-      const invalidConfirmSignature = await web3.eth.sign(invalidSigner, confirmHash)
+      const legitConfirmSigs = confirmSignature1 + confirmSignature2
+      const reverseConfirmSigs = confirmSignature2 + confirmSignature1
+
+      const invalidConfirmSignature = (await web3.eth.sign(invalidSigner, confirmHash)).slice(2)
 
       // assert valid confirmSignatures will pass checkSigs
       assert.isTrue(
-        await validator.checkSigs.call(txHash, rootHash, 1, initialSigs + confirmSigs.slice(2)),
+        await validator.checkSigs.call(txHash, rootHash, 1, initialSigs + legitConfirmSigs),
         "checkSigs doesn't return true when it should"
       )
 
       // assert invalid confirmSignatures will not pass checkSigs
       assert.isFalse(
-        await validator.checkSigs.call(txHash, rootHash, 1, initialSigs + confirmSignature1.slice(2) + invalidConfirmSignature.slice(2)),
-        "checkSigs doesn't return false with invalid confirm signature."
+        await validator.checkSigs.call(txHash, rootHash, 1, initialSigs + reverseConfirmSigs),
+        "reversed confirmation signatures shouldn't pass"
       )
 
+      assert.isFalse(
+        await validator.checkSigs.call(txHash, rootHash, 1, initialSigs + invalidConfirmSignature + confirmSignature2),
+        "invalid confirm signature in first of two positions shouldn't pass"
+      )
+
+      assert.isFalse(
+        await validator.checkSigs.call(txHash, rootHash, 1, initialSigs + confirmSignature1 + invalidConfirmSignature),
+        "invalid confirm signature in second of two positions shouldn't pass"
+      )
+
+      assert.isFalse(
+        await validator.checkSigs.call(txHash, rootHash, 1, signature2 + signature1.slice(2) + legitConfirmSigs),
+        "wrong order transaction signatures shouldn't pass"
+      )
     })
   })
 
