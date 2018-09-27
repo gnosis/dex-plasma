@@ -14,7 +14,8 @@ const {
   encodeUtxoPosition,
   BlockType,
   toHex,
-  generateTransaction,
+  generateTransactionWithOutput,
+  generateTransactionWithInput,
   generateDoubleSignature,
   generateMerkleTree,
   fastForward,
@@ -205,7 +206,7 @@ contract("Plasma", (accounts) => {
       // Generate Transaction
       const outputIndex = 0
       const txIndex = 0
-      const tx = await generateTransaction(operator, 0, 10, 0, outputIndex)
+      const tx = await generateTransactionWithOutput(operator, 0, 10, outputIndex)
       const tree = generateMerkleTree(txIndex, tx.signedTxHash)
       const doubleSignature = await generateDoubleSignature(tx, tree, operator)
 
@@ -231,7 +232,7 @@ contract("Plasma", (accounts) => {
       // Generate Transaction
       const outputIndex = 0
       const txIndex = 0
-      const tx = await generateTransaction(operator, 0, 10, 0, outputIndex)
+      const tx = await generateTransactionWithOutput(operator, 0, 10, outputIndex)
       const tree = generateMerkleTree(txIndex, tx.signedTxHash)
       const doubleSignature = await generateDoubleSignature(tx, tree, operator)
 
@@ -257,7 +258,7 @@ contract("Plasma", (accounts) => {
       const txIndex = 0
 
       // Double signature != txSignature
-      const tx = await generateTransaction(operator, 0, 10, 0, outputIndex)
+      const tx = await generateTransactionWithOutput(operator, 0, 10, outputIndex)
       const tree = generateMerkleTree(txIndex, tx.signedTxHash)
       const doubleSignature = await generateDoubleSignature(tx, tree, depositor)
 
@@ -280,8 +281,8 @@ contract("Plasma", (accounts) => {
       const outputIndex = 0
       const txIndex = 0
       const otherTxIndex = 1
-      const tx = await generateTransaction(operator, 0, 10, 0, outputIndex)
-      const otherTx = await generateTransaction(operator, 0, 11, 0, outputIndex)
+      const tx = await generateTransactionWithOutput(operator, 0, 10, outputIndex)
+      const otherTx = await generateTransactionWithOutput(operator, 0, 11, outputIndex)
 
       const tree = generateMerkleTree(txIndex, tx.signedTxHash, otherTxIndex, otherTx.signedTxHash)
       const doubleSignature = await generateDoubleSignature(tx, tree, operator)
@@ -304,7 +305,7 @@ contract("Plasma", (accounts) => {
       // Generate Transaction
       const outputIndex = 0
       const txIndex = 0
-      const tx = await generateTransaction(operator, 1 /* unregistered token */, 10, 0, outputIndex)
+      const tx = await generateTransactionWithOutput(operator, 1 /* unregistered token */, 10, outputIndex)
       const tree = generateMerkleTree(txIndex, tx.signedTxHash)
       const doubleSignature = await generateDoubleSignature(tx, tree, operator)
 
@@ -326,7 +327,7 @@ contract("Plasma", (accounts) => {
       // Generate Transaction
       const outputIndex = 0
       const txIndex = 0
-      const tx = await generateTransaction(operator, 0, 10, 0, outputIndex)
+      const tx = await generateTransactionWithOutput(operator, 0, 10, outputIndex)
       const tree = generateMerkleTree(txIndex, tx.signedTxHash)
       const doubleSignature = await generateDoubleSignature(tx, tree, operator)
 
@@ -346,6 +347,56 @@ contract("Plasma", (accounts) => {
     })
   })
 
+  describe.only("challengeTransactionExitWithTransaction", () => {
+    it("can challenge a tx if output was spent", async () => {
+      const plasma = await Plasma.new(operator, 0x0)
+
+      // Generate Transaction
+      const outputIndex = 0
+      const txIndex = 0
+      const tx = await generateTransactionWithOutput(operator, 0, 10, outputIndex)
+      const tree = generateMerkleTree(txIndex, tx.signedTxHash)
+      const doubleSignature = await generateDoubleSignature(tx, tree, operator)
+
+      // Submit Merkle Root
+      const blknum = (await plasma.currentChildBlock.call()).toNumber()
+      await plasma.submitBlock(toHex(tree.getRoot()), BlockType.Transaction)
+      const utxoPosition = encodeUtxoPosition(blknum, outputIndex, txIndex)
+
+      // Generate and submit a transaction spending the previous
+      const inputIndex = 0
+      const spendingTx = await generateTransactionWithInput(utxoPosition, inputIndex, 0, operator)
+      const spendingTree = generateMerkleTree(txIndex, spendingTx.signedTxHash)
+      const spendingDoubleSignature = await generateDoubleSignature(spendingTx, spendingTree, operator)
+      const spendingBlknum = (await plasma.currentChildBlock.call()).toNumber()
+      await plasma.submitBlock(toHex(spendingTree.getRoot()), BlockType.Transaction)
+
+      // Exit for first transaction
+      const proof = Buffer.concat(tree.getProof(tx.signedTxHash).map(x => x.data))
+      await plasma.startTransactionExit(utxoPosition, tx.tx, toHex(proof), doubleSignature)
+      
+      // Make sure exit is recorded
+      let [ owner ] = await plasma.getExit.call(utxoPosition)
+      assert.equal(owner, operator)
+
+      // Challenge the exit
+      const challengeUtxoPosition = encodeUtxoPosition(spendingBlknum, txIndex, inputIndex)
+      const challengeProof = Buffer.concat(spendingTree.getProof(spendingTx.signedTxHash).map(x => x.data))
+      await plasma.challengeTransactionExitWithTransaction(
+        challengeUtxoPosition, 
+        inputIndex, 
+        spendingTx.tx, 
+        toHex(challengeProof), 
+        spendingTx.txSignature, 
+        "0x" + spendingDoubleSignature.slice(spendingTx.txSignature.length)
+      )
+
+      // Exit is now aborted
+      owner = (await plasma.getExit.call(utxoPosition))[0]
+      assert.notEqual(owner, operator)
+    })
+  })
+
   describe("finalizeExits", () => {
     it("cannot be called on an empty queue", async () => {
       const plasma = await Plasma.new(operator, 0x0)
@@ -361,7 +412,7 @@ contract("Plasma", (accounts) => {
       const plasma = await Plasma.new(operator, 0x0)
 
       // Generate Transaction
-      const tx = await generateTransaction(operator, 0, 10, 0, 0)
+      const tx = await generateTransactionWithOutput(operator, 0, 10, 0)
       const tree = generateMerkleTree(0, tx.signedTxHash)
       const doubleSignature = await generateDoubleSignature(tx, tree, operator)
 
@@ -391,7 +442,7 @@ contract("Plasma", (accounts) => {
       await etherMock.givenReturn(transfer, abi.rawEncode(["bool"], [true]).toString())
 
       // First Transaction
-      const tx = await generateTransaction(operator, 0, amount, 0, 0)
+      const tx = await generateTransactionWithOutput(operator, 0, amount, 0)
       let tree = generateMerkleTree(0, tx.signedTxHash)
       let doubleSignature = await generateDoubleSignature(tx, tree, operator)
 
@@ -407,7 +458,7 @@ contract("Plasma", (accounts) => {
       await fastForward(one_week)
 
       // Another transaction/exit, this time from depositor
-      const anotherTx = await generateTransaction(depositor, 0, amount, 0, 0)
+      const anotherTx = await generateTransactionWithOutput(depositor, 0, amount, 0)
       tree = generateMerkleTree(0, anotherTx.signedTxHash)
       doubleSignature = await generateDoubleSignature(anotherTx, tree, depositor)
       blknum = (await plasma.currentChildBlock.call()).toNumber()
@@ -436,7 +487,7 @@ contract("Plasma", (accounts) => {
       await etherMock.givenReturn(transfer, abi.rawEncode(["bool"], [false]).toString())
 
       // First Transaction
-      const tx = await generateTransaction(operator, 0, amount, 0, 0)
+      const tx = await generateTransactionWithOutput(operator, 0, amount, 0)
       const tree = generateMerkleTree(0, tx.signedTxHash)
       const doubleSignature = await generateDoubleSignature(tx, tree, operator)
 

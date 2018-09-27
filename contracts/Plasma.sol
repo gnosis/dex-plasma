@@ -246,7 +246,7 @@ contract Plasma {
 
         addExitToQueue(_utxoPos, exitingTx.exitor, exitingTx.token, exitingTx.amount, childChain[blknum].timestamp);
     }
-
+    
     /**
      * @dev Allows anyone to challenge an exiting transaction by submitting proof of a double spend on the child chain.
      * @param _cUtxoPos The position of the challenging utxo.
@@ -278,7 +278,7 @@ contract Plasma {
 
         // Validate the spending transaction.
         require(
-            owner == ECRecovery.recover(confirmationHash, _confirmationSig),
+            owner == ECRecovery.recover(ECRecovery.toEthSignedMessageHash(confirmationHash), _confirmationSig),
             "Challenge failed at ECRecovery"
         );
 
@@ -591,7 +591,6 @@ contract Plasma {
             queue.delMin();
             // Delete the owner but keep the amount to prevent another exit.
             delete exits[utxoPos].owner;
-
             if (queue.currentSize() > 0) {
                 (exitableAt, utxoPos) = getNextExit(_token);
             } else {
