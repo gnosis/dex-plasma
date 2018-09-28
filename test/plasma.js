@@ -404,7 +404,7 @@ contract("Plasma", (accounts) => {
       let proof = Buffer.concat(tree.getProof(tx.signedTxHash).map(x => x.data))
       await plasma.startTransactionExit(utxoPosition, tx.tx, toHex(proof), doubleSignature)
 
-      await fastForward(one_week)
+      await fastForward(one_week + 1)
 
       // Another transaction/exit, this time from depositor
       const anotherTx = await generateTransaction(depositor, 0, amount, 0, 0)
