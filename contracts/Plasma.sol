@@ -246,7 +246,7 @@ contract Plasma {
 
         addExitToQueue(_utxoPos, exitingTx.exitor, exitingTx.token, exitingTx.amount, childChain[blknum].timestamp);
     }
-    
+
     /**
      * @dev Allows anyone to challenge an exiting transaction by submitting proof of a double spend on the child chain.
      * @param _cUtxoPos The position of the challenging utxo.
@@ -584,13 +584,15 @@ contract Plasma {
         Exit memory currentExit;
         while (exitableAt < block.timestamp) {
             currentExit = exits[utxoPos];
-            require(
-                Token(listedTokens[_token]).transfer(currentExit.owner, currentExit.amount),
-                "Failed token transfer on finalizeExits"
-            );
             queue.delMin();
-            // Delete the owner but keep the amount to prevent another exit.
-            delete exits[utxoPos].owner;
+            if (currentExit.owner != address(0)) {
+                require(
+                    Token(listedTokens[_token]).transfer(currentExit.owner, currentExit.amount),
+                    "Failed token transfer on finalizeExits"
+                );
+                // Delete the owner but keep the amount to prevent another exit.
+                delete exits[utxoPos].owner;
+            }
             if (queue.currentSize() > 0) {
                 (exitableAt, utxoPos) = getNextExit(_token);
             } else {

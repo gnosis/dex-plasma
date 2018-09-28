@@ -8,6 +8,7 @@ const MockContract = artifacts.require("./MockContract.sol")
 const EtherToken = artifacts.require("EtherToken.sol")
 const Plasma = artifacts.require("Plasma.sol")
 const abi = require("ethereumjs-abi")
+const { sha3 } = require("ethereumjs-util")
 
 const {
   assertRejects,
@@ -347,7 +348,7 @@ contract("Plasma", (accounts) => {
     })
   })
 
-  describe.only("challengeTransactionExitWithTransaction", () => {
+  describe("challengeTransactionExitWithTransaction", () => {
     it("can challenge a tx if output was spent", async () => {
       const plasma = await Plasma.new(operator, 0x0)
 
@@ -394,6 +395,93 @@ contract("Plasma", (accounts) => {
       // Exit is now aborted
       owner = (await plasma.getExit.call(utxoPosition))[0]
       assert.notEqual(owner, operator)
+    })
+
+    it("cannot challenge a tx with self-signed confirmation", async () => {
+      const plasma = await Plasma.new(operator, 0x0)
+
+      // Generate Transaction
+      const outputIndex = 0
+      const txIndex = 0
+      const tx = await generateTransactionWithOutput(operator, 0, 10, outputIndex)
+      const tree = generateMerkleTree(txIndex, tx.signedTxHash)
+      const doubleSignature = await generateDoubleSignature(tx, tree, operator)
+
+      // Submit Merkle Root
+      const blknum = (await plasma.currentChildBlock.call()).toNumber()
+      await plasma.submitBlock(toHex(tree.getRoot()), BlockType.Transaction)
+      const utxoPosition = encodeUtxoPosition(blknum, outputIndex, txIndex)
+
+      // Generate and submit a transaction spending the previous
+      const inputIndex = 0
+      const spendingTx = await generateTransactionWithInput(utxoPosition, inputIndex, 0, operator)
+      const spendingTree = generateMerkleTree(txIndex, spendingTx.signedTxHash)
+      const spendingBlknum = (await plasma.currentChildBlock.call()).toNumber()
+      await plasma.submitBlock(toHex(spendingTree.getRoot()), BlockType.Transaction)
+
+      // Exit for first transaction
+      const proof = Buffer.concat(tree.getProof(tx.signedTxHash).map(x => x.data))
+      await plasma.startTransactionExit(utxoPosition, tx.tx, toHex(proof), doubleSignature)
+
+      // Challenge the exit WITH INCORRECT DOUBLE SIGNATURE
+      const spendingDoubleSignature = await generateDoubleSignature(spendingTx, spendingTree, depositor)
+      const challengeUtxoPosition = encodeUtxoPosition(spendingBlknum, txIndex, inputIndex)
+      const challengeProof = Buffer.concat(spendingTree.getProof(spendingTx.signedTxHash).map(x => x.data))
+      await assertRejects(
+        plasma.challengeTransactionExitWithTransaction(
+          challengeUtxoPosition, 
+          inputIndex, 
+          spendingTx.tx, 
+          toHex(challengeProof), 
+          spendingTx.txSignature, 
+          "0x" + spendingDoubleSignature.slice(spendingTx.txSignature.length)
+        )
+      )
+    })
+
+    it("cannot resubmit a challenged exit", async () => {
+      const plasma = await Plasma.new(operator, 0x0)
+
+      // Generate Transaction
+      const outputIndex = 0
+      const txIndex = 0
+      const tx = await generateTransactionWithOutput(operator, 0, 10, outputIndex)
+      const tree = generateMerkleTree(txIndex, tx.signedTxHash)
+      const doubleSignature = await generateDoubleSignature(tx, tree, operator)
+
+      // Submit Merkle Root
+      const blknum = (await plasma.currentChildBlock.call()).toNumber()
+      await plasma.submitBlock(toHex(tree.getRoot()), BlockType.Transaction)
+      const utxoPosition = encodeUtxoPosition(blknum, outputIndex, txIndex)
+
+      // Generate and submit a transaction spending the previous
+      const inputIndex = 0
+      const spendingTx = await generateTransactionWithInput(utxoPosition, inputIndex, 0, operator)
+      const spendingTree = generateMerkleTree(txIndex, spendingTx.signedTxHash)
+      const spendingDoubleSignature = await generateDoubleSignature(spendingTx, spendingTree, operator)
+      const spendingBlknum = (await plasma.currentChildBlock.call()).toNumber()
+      await plasma.submitBlock(toHex(spendingTree.getRoot()), BlockType.Transaction)
+
+      // Exit for first transaction
+      const proof = Buffer.concat(tree.getProof(tx.signedTxHash).map(x => x.data))
+      await plasma.startTransactionExit(utxoPosition, tx.tx, toHex(proof), doubleSignature)
+
+      // Challenge the exit
+      const challengeUtxoPosition = encodeUtxoPosition(spendingBlknum, txIndex, inputIndex)
+      const challengeProof = Buffer.concat(spendingTree.getProof(spendingTx.signedTxHash).map(x => x.data))
+      await plasma.challengeTransactionExitWithTransaction(
+        challengeUtxoPosition, 
+        inputIndex, 
+        spendingTx.tx, 
+        toHex(challengeProof), 
+        spendingTx.txSignature, 
+        "0x" + spendingDoubleSignature.slice(spendingTx.txSignature.length)
+      )
+
+      // Resubmit Exit Request
+      await assertRejects(
+        plasma.startTransactionExit(utxoPosition, tx.tx, toHex(proof), doubleSignature)
+      )
     })
   })
 
@@ -502,6 +590,56 @@ contract("Plasma", (accounts) => {
 
       await fastForward(2*one_week)
       await assertRejects(plasma.finalizeExits(0))
+    })
+
+    it("cannot finalize exit if it succesfully challenged", async() => {
+      const etherMock = await MockContract.new()
+      const plasma = await Plasma.new(operator, etherMock.address)
+
+      // Make sure we fail if we transfer exit funds
+      const methodId = toHex(sha3("transfer(address,uint256)")).slice(0,10)
+      await etherMock.givenRevertAny(methodId)
+
+      // Generate Transaction
+      const outputIndex = 0
+      const txIndex = 0
+      const tx = await generateTransactionWithOutput(operator, 0, 10, outputIndex)
+      const tree = generateMerkleTree(txIndex, tx.signedTxHash)
+      const doubleSignature = await generateDoubleSignature(tx, tree, operator)
+
+      // Submit Merkle Root
+      const blknum = (await plasma.currentChildBlock.call()).toNumber()
+      await plasma.submitBlock(toHex(tree.getRoot()), BlockType.Transaction)
+      const utxoPosition = encodeUtxoPosition(blknum, outputIndex, txIndex)
+
+      // Generate and submit a transaction spending the previous
+      const inputIndex = 0
+      const spendingTx = await generateTransactionWithInput(utxoPosition, inputIndex, 0, operator)
+      const spendingTree = generateMerkleTree(txIndex, spendingTx.signedTxHash)
+      const spendingDoubleSignature = await generateDoubleSignature(spendingTx, spendingTree, operator)
+      const spendingBlknum = (await plasma.currentChildBlock.call()).toNumber()
+      await plasma.submitBlock(toHex(spendingTree.getRoot()), BlockType.Transaction)
+
+      // Exit for first transaction
+      const proof = Buffer.concat(tree.getProof(tx.signedTxHash).map(x => x.data))
+      await plasma.startTransactionExit(utxoPosition, tx.tx, toHex(proof), doubleSignature)
+
+      // Challenge the exit
+      const challengeUtxoPosition = encodeUtxoPosition(spendingBlknum, txIndex, inputIndex)
+      const challengeProof = Buffer.concat(spendingTree.getProof(spendingTx.signedTxHash).map(x => x.data))
+      await plasma.challengeTransactionExitWithTransaction(
+        challengeUtxoPosition, 
+        inputIndex, 
+        spendingTx.tx, 
+        toHex(challengeProof), 
+        spendingTx.txSignature, 
+        "0x" + spendingDoubleSignature.slice(spendingTx.txSignature.length)
+      )
+
+      await fastForward(2*one_week)
+
+      // If we try to finalize the challenged exit transfer would fail
+      await plasma.finalizeExits(0)
     })
   })
 
