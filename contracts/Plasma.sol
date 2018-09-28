@@ -576,18 +576,20 @@ contract Plasma {
     function finalizeExits(uint _token)
         public
     {
+        require(exitsQueues[_token] != address(0), "Token not recognized");
         uint utxoPos;
         uint exitableAt;
         (exitableAt, utxoPos) = getNextExit(_token);
         PriorityQueue queue = PriorityQueue(exitsQueues[_token]);
-        Exit memory currentExit = exits[utxoPos];
+        Exit memory currentExit;
         while (exitableAt < block.timestamp) {
             currentExit = exits[utxoPos];
             require(
-                Token(_token).transfer(currentExit.owner, currentExit.amount),
+                Token(listedTokens[_token]).transfer(currentExit.owner, currentExit.amount),
                 "Failed token transfer on finalizeExits"
             );
             queue.delMin();
+            // Delete the owner but keep the amount to prevent another exit.
             delete exits[utxoPos].owner;
 
             if (queue.currentSize() > 0) {
