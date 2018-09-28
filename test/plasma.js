@@ -2,7 +2,7 @@ const oneETH = 10**18
 const zeroHash = 0x0
 const one_zero = "0x0100"  // This is hex for the bit-array [1, 0]
 const one_hash = "0x" + "1".repeat(64)
-const one_week = 7*24*60*60
+const one_week = (7*24*60*60) + 1 // has to be > one_week
 
 const MockContract = artifacts.require("./MockContract.sol")
 const EtherToken = artifacts.require("EtherToken.sol")
@@ -404,7 +404,7 @@ contract("Plasma", (accounts) => {
       let proof = Buffer.concat(tree.getProof(tx.signedTxHash).map(x => x.data))
       await plasma.startTransactionExit(utxoPosition, tx.tx, toHex(proof), doubleSignature)
 
-      await fastForward(one_week + 1)
+      await fastForward(one_week)
 
       // Another transaction/exit, this time from depositor
       const anotherTx = await generateTransaction(depositor, 0, amount, 0, 0)
