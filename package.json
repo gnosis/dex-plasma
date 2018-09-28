@@ -25,6 +25,7 @@
   "dependencies": {
     "@gnosis.pm/util-contracts": "^1.0.1",
     "eslint-plugin-react": "^7.11.1",
+    "fast-memoize": "^2.5.1",
     "merkletreejs": "0.0.10",
     "openzeppelin-solidity": "^1.12.0",
     "rlp": "^2.1.0",
