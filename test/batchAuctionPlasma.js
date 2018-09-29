@@ -3,9 +3,7 @@ const zeroHash = 0x0
 const one_hash = "0x" + "1".repeat(64)
 const one_zero = "0x0100"  // This is hex for the bit-array [1, 0]
 
-const abi = require("ethereumjs-abi")
 const MockContract = artifacts.require("./MockContract.sol")
-const EtherToken = artifacts.require("EtherToken.sol")
 const BatchAuctionPlasma = artifacts.require("BatchAuctionPlasma.sol")
 
 const {
@@ -79,12 +77,9 @@ contract("BatchAuctionPlasma", (accounts) => {
 
     it ("can submit order block after deposit block", async () => {
       const etherMock = await MockContract.new()
-      const plasma = await BatchAuctionPlasma.new(operator, etherMock.address)
+      await etherMock.givenAnyReturnBool(true)
       
-      const etherToken = EtherToken.at(etherMock.address)
-      const transfer = await etherToken.contract.transferFrom.getData(depositor, plasma.address, oneETH)
-      await etherMock.givenReturn(transfer, abi.rawEncode(["bool"], [true]).toString())
-
+      const plasma = await BatchAuctionPlasma.new(operator, etherMock.address)
       await plasma.deposit(oneETH, 0, {from: depositor})
 
       const blockNumber = (await plasma.currentChildBlock.call()).toNumber()
