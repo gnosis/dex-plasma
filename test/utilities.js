@@ -115,7 +115,7 @@ const fastForward = async function(seconds) {
   await web3.currentProvider.send({jsonrpc: "2.0", method: "evm_mine", params: [], id: 0})
   const currTime = (await web3.eth.getBlock(await web3.eth.blockNumber)).timestamp
   const diff = (currTime - oldTime) - seconds
-  assert.isAbove(diff, 0, "Block time was not fast forwarded enough")
+  assert.isAtLeast(diff, 0, "Block time was not fast forwarded enough")
 }
 
 const _createTxFromRlp = async function(tx, signer) {
