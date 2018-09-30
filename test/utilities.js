@@ -137,15 +137,15 @@ function keccak256(...args) {
 
   return web3.sha3(args, { encoding: "hex" })
 }
-// Fast forward 1 week
-// let fastForward = async function() {
-//   let oldTime = (await web3.eth.getBlock(await web3.eth.blockNumber)).timestamp;
-//   await web3.currentProvider.send({jsonrpc: "2.0", method: "evm_increaseTime", params: [804800], id: 0});
-//   await web3.currentProvider.send({jsonrpc: "2.0", method: "evm_mine", params: [], id: 0});
-//   let currTime = (await web3.eth.getBlock(await web3.eth.blockNumber)).timestamp;
-//   let diff = (currTime - oldTime) - 804800;
-//   assert.isBelow(diff, 3, "Block time was not fast forwarded by 1 week");
-// };
+
+const fastForward = async function(seconds) {
+  const oldTime = (await web3.eth.getBlock(await web3.eth.blockNumber)).timestamp
+  await web3.currentProvider.send({jsonrpc: "2.0", method: "evm_increaseTime", params: [seconds], id: 0})
+  await web3.currentProvider.send({jsonrpc: "2.0", method: "evm_mine", params: [], id: 0})
+  const currTime = (await web3.eth.getBlock(await web3.eth.blockNumber)).timestamp
+  const diff = (currTime - oldTime) - seconds
+  assert.isAbove(diff, 0, "Block time was not fast forwarded enough")
+}
 
 
 module.exports = {
@@ -161,5 +161,5 @@ module.exports = {
   generateTransaction,
   generateDoubleSignature,
   generateMerkleTree,
-  // fastForward: fastForward,
+  fastForward,
 }

@@ -2,6 +2,7 @@ const oneETH = 10**18
 const zeroHash = 0x0
 const one_zero = "0x0100"  // This is hex for the bit-array [1, 0]
 const one_hash = "0x" + "1".repeat(64)
+const one_week = (7*24*60*60) + 1 // has to be > one_week
 
 const MockContract = artifacts.require("./MockContract.sol")
 const EtherToken = artifacts.require("EtherToken.sol")
@@ -16,6 +17,7 @@ const {
   generateTransaction,
   generateDoubleSignature,
   generateMerkleTree,
+  fastForward,
 } = require("./utilities.js")
 
 contract("Plasma", (accounts) => {
@@ -341,6 +343,114 @@ contract("Plasma", (accounts) => {
       await assertRejects(
         plasma.startTransactionExit(utxoPosition, tx.tx, toHex(proof), doubleSignature)
       )
+    })
+  })
+
+  describe("finalizeExits", () => {
+    it("cannot be called on an empty queue", async () => {
+      const plasma = await Plasma.new(operator, 0x0)
+      await assertRejects(plasma.finalizeExits(0))
+    })
+
+    it("cannot be called with a non existant token", async () => {
+      const plasma = await Plasma.new(operator, 0x0)
+      await assertRejects(plasma.finalizeExits(42))
+    })
+
+    it("does nothing if most recent tx not exitable", async() => {
+      const plasma = await Plasma.new(operator, 0x0)
+
+      // Generate Transaction
+      const tx = await generateTransaction(operator, 0, 10, 0, 0)
+      const tree = generateMerkleTree(0, tx.signedTxHash)
+      const doubleSignature = await generateDoubleSignature(tx, tree, operator)
+
+      // Submit Merkle Root
+      const blknum = (await plasma.currentChildBlock.call()).toNumber()
+      await plasma.submitBlock(toHex(tree.getRoot()), BlockType.Transaction)
+
+      // startExit
+      const utxoPosition = encodeUtxoPosition(blknum, 0, 0)
+      const proof = Buffer.concat(tree.getProof(tx.signedTxHash).map(x => x.data))
+      await plasma.startTransactionExit(utxoPosition, tx.tx, toHex(proof), doubleSignature)
+
+      const nextExitBefore = await plasma.getNextExit.call(0)
+      await plasma.finalizeExits(0)
+      const nextExitAfter = await plasma.getNextExit.call(0)
+      assert.deepEqual(nextExitBefore, nextExitAfter)
+    })
+
+    it("exits transactions that are exitable", async() => {
+      const etherMock = await MockContract.new()
+      const plasma = await Plasma.new(operator, etherMock.address)
+
+      // Make sure we can transfer exit funds
+      const amount = 10
+      const etherToken = EtherToken.at(etherMock.address)
+      const transfer = await etherToken.contract.transfer.getData(operator, amount)
+      await etherMock.givenReturn(transfer, abi.rawEncode(["bool"], [true]).toString())
+
+      // First Transaction
+      const tx = await generateTransaction(operator, 0, amount, 0, 0)
+      let tree = generateMerkleTree(0, tx.signedTxHash)
+      let doubleSignature = await generateDoubleSignature(tx, tree, operator)
+
+      // Submit Merkle Root
+      let blknum = (await plasma.currentChildBlock.call()).toNumber()
+      await plasma.submitBlock(toHex(tree.getRoot()), BlockType.Transaction)
+
+      // startExit
+      let utxoPosition = encodeUtxoPosition(blknum, 0, 0)
+      let proof = Buffer.concat(tree.getProof(tx.signedTxHash).map(x => x.data))
+      await plasma.startTransactionExit(utxoPosition, tx.tx, toHex(proof), doubleSignature)
+
+      await fastForward(one_week)
+
+      // Another transaction/exit, this time from depositor
+      const anotherTx = await generateTransaction(depositor, 0, amount, 0, 0)
+      tree = generateMerkleTree(0, anotherTx.signedTxHash)
+      doubleSignature = await generateDoubleSignature(anotherTx, tree, depositor)
+      blknum = (await plasma.currentChildBlock.call()).toNumber()
+      await plasma.submitBlock(toHex(tree.getRoot()), BlockType.Transaction)
+      utxoPosition = encodeUtxoPosition(blknum, 0, 0)
+      proof = Buffer.concat(tree.getProof(anotherTx.signedTxHash).map(x => x.data))
+      await plasma.startTransactionExit(utxoPosition, anotherTx.tx, toHex(proof), doubleSignature, {from: depositor})
+
+      await fastForward(one_week)
+
+      // Now first exit should be exitable and second exit should not.
+      const nextExitBefore = await plasma.getNextExit.call(0)
+      await plasma.finalizeExits(0)
+      const nextExitAfter = await plasma.getNextExit.call(0)
+      assert.notDeepEqual(nextExitBefore, nextExitAfter)
+    })
+
+    it("cannot exit if transfer fails", async() => {
+      const etherMock = await MockContract.new()
+      const plasma = await Plasma.new(operator, etherMock.address)
+
+      // Make sure we cannot transfer exit funds
+      const amount = 10
+      const etherToken = EtherToken.at(etherMock.address)
+      const transfer = await etherToken.contract.transfer.getData(operator, amount)
+      await etherMock.givenReturn(transfer, abi.rawEncode(["bool"], [false]).toString())
+
+      // First Transaction
+      const tx = await generateTransaction(operator, 0, amount, 0, 0)
+      const tree = generateMerkleTree(0, tx.signedTxHash)
+      const doubleSignature = await generateDoubleSignature(tx, tree, operator)
+
+      // Submit Merkle Root
+      const blknum = (await plasma.currentChildBlock.call()).toNumber()
+      await plasma.submitBlock(toHex(tree.getRoot()), BlockType.Transaction)
+
+      // startExit
+      const utxoPosition = encodeUtxoPosition(blknum, 0, 0)
+      const proof = Buffer.concat(tree.getProof(tx.signedTxHash).map(x => x.data))
+      await plasma.startTransactionExit(utxoPosition, tx.tx, toHex(proof), doubleSignature)
+
+      await fastForward(2*one_week)
+      await assertRejects(plasma.finalizeExits(0))
     })
   })
 

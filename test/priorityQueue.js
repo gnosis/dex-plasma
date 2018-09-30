@@ -122,4 +122,12 @@ contract("PriorityQueue", async (accounts) => {
     await instance.delMin()
     assert.equal(await instance.currentSize.call(), 0)
   })
+
+  it ("reverts if there is no min", async () => {
+    instance = await PriorityQueue.new()
+    const [err] = await catchError(instance.getMin())
+    if (!err) {
+      assert(false, "GetMin on empty queue should fail")
+    }
+  })
 })
