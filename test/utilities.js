@@ -1,6 +1,7 @@
 const RLP = require("rlp")
 const { sha3 } = require("ethereumjs-util")
 const MerkleTree = require("merkletreejs")
+const memoize = require("fast-memoize")
 
 /*
  How to avoid using try/catch blocks with promises' that could fail using async/await
@@ -96,13 +97,16 @@ const generateDoubleSignature = async function(tx, tree, signer) {
  * Given a sequence of index1, elements1, ..., indexN elementN this function returns 
  * the corresponding MerkleTree of height 16.
  */
-const generateMerkleTree = function(...args) {
+const _generateMerkleTree = function(...args) {
   const txs = Array(2**16).fill(sha3(0x0))
   for (let i=0; i<args.length; i+=2) {
     txs[args[i]] = args[i+1]
   }
   return new MerkleTree(txs, sha3)
 }
+const generateMerkleTree = memoize(_generateMerkleTree, {
+  strategy: memoize.strategies.variadic
+})
 
 const rlpEncodeTransaction = function(exitor, token, amount, inputCount, oindex) {
   const list = [inputCount, null, null, null, null, null, token, null, null, null, null]
