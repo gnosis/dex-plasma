@@ -60,27 +60,32 @@ const BlockType = {
 }
 
 /**
- * Generates a transaction object for the given parameters.
+ * Generates a transaction object containing the given output paramaters
  * The object consists of:
  * 1.) the RLP representation of that transaction (as a hex string)
  * 2.) the hash of that representation
  * 3.) the signature of that transaction signed by signer (exitor if signer is not specified)
  * 4.) the hash of the concetanation of txHash and signature (leaf element in the plasma merkle tree)
  */
-const generateTransaction = async function(exitor, token, amount, inputCount, oindex, signer) {
+const generateTransactionWithOutput = async function(receiver, token, amount, index, signer) {
   if (!signer) {
-    signer = exitor
+    signer = receiver
   }
-  const tx = rlpEncodeTransaction(exitor, token, amount, inputCount, oindex)
-  const txHash = sha3(tx)
-  const txSignature = await web3.eth.sign(signer, toHex(txHash)) + "00".repeat(65)
-  const signedTxHash = sha3(Buffer.concat([txHash, fromHex(txSignature)]))
-  return {
-    tx: toHex(tx),
-    txHash,
-    txSignature,
-    signedTxHash,
-  }
+  const tx = _rlpEncodeTransactionOutput(receiver, token, amount, index)
+  return _createTxFromRlp(tx, signer)
+}
+
+/**
+ * Generates a transaction object containing the given input utxoPosition at Index
+ * The object consists of:
+ * 1.) the RLP representation of that transaction (as a hex string)
+ * 2.) the hash of that representation
+ * 3.) the signature of that transaction signed by signer (exitor if signer is not specified)
+ * 4.) the hash of the concetanation of txHash and signature (leaf element in the plasma merkle tree)
+ */
+const generateTransactionWithInput = async function(utxoPosition, index, token, signer) {
+  const tx = _rlpEncodeTransactionInput(utxoPosition, index, token)
+  return _createTxFromRlp(tx, signer)
 }
 
 /**
@@ -108,27 +113,46 @@ const generateMerkleTree = memoize(_generateMerkleTree, {
   strategy: memoize.strategies.variadic
 })
 
-const rlpEncodeTransaction = function(exitor, token, amount, inputCount, oindex) {
-  const list = [inputCount, null, null, null, null, null, token, null, null, null, null]
-  if (oindex) {
-    list[9] = exitor
-    list[10] = amount
-  } else {
-    list[7] = exitor
-    list[8] = amount
-  }
-  return RLP.encode(list)
-}
-
 const fastForward = async function(seconds) {
   const oldTime = (await web3.eth.getBlock(await web3.eth.blockNumber)).timestamp
   await web3.currentProvider.send({jsonrpc: "2.0", method: "evm_increaseTime", params: [seconds], id: 0})
   await web3.currentProvider.send({jsonrpc: "2.0", method: "evm_mine", params: [], id: 0})
   const currTime = (await web3.eth.getBlock(await web3.eth.blockNumber)).timestamp
   const diff = (currTime - oldTime) - seconds
-  assert.isAbove(diff, 0, "Block time was not fast forwarded enough")
+  assert.isAtLeast(diff, 0, "Block time was not fast forwarded enough")
 }
 
+const _createTxFromRlp = async function(tx, signer) {
+  const txHash = sha3(tx)
+  const txSignature = await web3.eth.sign(signer, toHex(txHash)) + "00".repeat(65)
+  const signedTxHash = sha3(Buffer.concat([txHash, fromHex(txSignature)]))
+  return {
+    tx: toHex(tx),
+    txHash,
+    txSignature,
+    signedTxHash,
+  }
+}
+
+const _rlpEncodeTransactionOutput = function(receiver, token, amount, oindex) {
+  let list = [0, 0, 0, 0, 0, 0, token]
+  if (oindex) {
+    list = list.concat(0, 0, receiver, amount)
+  } else {
+    list = list.concat(receiver, amount, 0, 0)
+  }
+  return RLP.encode(list)
+}
+
+const _rlpEncodeTransactionInput = function(utxoPosition, index, token) {
+  let list = [token, 0, 0, 0, 0]
+  if (index) {
+    list = [0, 0, 0, utxoPosition, 0, 0].concat(list)
+  } else {
+    list = [utxoPosition, 0, 0, 0, 0, 0].concat(list)
+  }
+  return RLP.encode(list)
+}
 
 module.exports = {
   assertRejects,
@@ -138,8 +162,8 @@ module.exports = {
   waitForNBlocks,
   encodeUtxoPosition,
   BlockType,
-  rlpEncodeTransaction,
-  generateTransaction,
+  generateTransactionWithOutput,
+  generateTransactionWithInput,
   generateDoubleSignature,
   generateMerkleTree,
   fastForward,
