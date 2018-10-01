@@ -1,14 +1,11 @@
 const oneETH = 10**18
 const zeroHash = 0x0
-const one_zero = "0x0100"  // This is hex for the bit-array [1, 0]
 const one_hash = "0x" + "1".repeat(64)
 const one_week = (7*24*60*60) + 1 // has to be > one_week
 
 const MockContract = artifacts.require("./MockContract.sol")
 const EtherToken = artifacts.require("EtherToken.sol")
 const Plasma = artifacts.require("Plasma.sol")
-const abi = require("ethereumjs-abi")
-const { sha3 } = require("ethereumjs-util")
 
 const {
   assertRejects,
@@ -27,11 +24,9 @@ contract("Plasma", (accounts) => {
   describe("Deposit Tests", () => {
     it("deposit from approved account", async () => {
       const etherMock = await MockContract.new()
+      await etherMock.givenAnyReturnBool(true)
+
       const plasma = await Plasma.new(operator, etherMock.address)
-      
-      const etherToken = EtherToken.at(etherMock.address)
-      const transfer = await etherToken.contract.transferFrom.getData(depositor, plasma.address, oneETH)
-      await etherMock.givenReturn(transfer, abi.rawEncode(["bool"], [true]).toString())
 
       const currentDepositBlock = (await plasma.currentDepositBlock.call()).toNumber()
 
@@ -46,14 +41,10 @@ contract("Plasma", (accounts) => {
     let plasma
     beforeEach(async () => {
       const etherMock = await MockContract.new()
+      await etherMock.givenAnyReturnBool(true)
+
       plasma = await Plasma.new(operator, etherMock.address)
-      
-      const etherToken = EtherToken.at(etherMock.address)
-      const transfer = await etherToken.contract.transferFrom.getData(depositor, plasma.address, oneETH)
-      await etherMock.givenReturn(transfer, abi.rawEncode(["bool"], [true]).toString())
-
       await plasma.deposit(oneETH, 0, {from: depositor})
-
     })
 
     it("Rejected: blknum % CHILD_BLOCK_INTERVAL == 0", async () => {
@@ -116,87 +107,6 @@ contract("Plasma", (accounts) => {
     it ("cannot submit a deposit block", async () => {
       const plasma = await Plasma.new(operator, 0x0)
       await assertRejects(plasma.submitBlock(zeroHash, BlockType.Deposit, {from: operator}))
-    })
-
-    it ("cannot submit a transaction block, while the auction is ongoing", async () => {
-      const plasma = await Plasma.new(operator, 0x0)
-
-      await plasma.submitBlock(zeroHash, BlockType.Order, {from: operator})
-      await assertRejects(plasma.submitBlock(zeroHash, BlockType.Transaction, {from: operator}))
-
-      await plasma.submitBlock(zeroHash, BlockType.OrderDoubleSign, {from: operator})
-      await assertRejects(plasma.submitBlock(zeroHash, BlockType.Transaction, {from: operator}))
-
-      await plasma.submitBlock(zeroHash, BlockType.AuctionResult, {from: operator})
-      await assertRejects(plasma.submitBlock(zeroHash, BlockType.Transaction, {from: operator}))
-
-      await plasma.submitBlock(zeroHash, BlockType.AuctionOutput, {from: operator})
-      
-      // Eventually passing
-      const blockNumber = (await plasma.currentChildBlock.call()).toNumber()
-      await plasma.submitBlock(one_hash, BlockType.Transaction, {from: operator})
-      assert.equal((await plasma.getChildChain.call(blockNumber))[0], one_hash)
-    })
-
-    it ("can submit order block after transaction block", async () => {
-      const plasma = await Plasma.new(operator, 0x0)
-      await plasma.submitBlock(zeroHash, BlockType.Transaction, {from: operator})
-      
-      const blockNumber = (await plasma.currentChildBlock.call()).toNumber()
-      await plasma.submitBlock(one_hash, BlockType.Order, {from: operator})
-      assert.equal((await plasma.getChildChain.call(blockNumber))[0], one_hash)
-    })
-
-    it ("can submit order block after deposit block", async () => {
-      const etherMock = await MockContract.new()
-      const plasma = await Plasma.new(operator, etherMock.address)
-      
-      const etherToken = EtherToken.at(etherMock.address)
-      const transfer = await etherToken.contract.transferFrom.getData(depositor, plasma.address, oneETH)
-      await etherMock.givenReturn(transfer, abi.rawEncode(["bool"], [true]).toString())
-
-      await plasma.deposit(oneETH, 0, {from: depositor})
-
-      const blockNumber = (await plasma.currentChildBlock.call()).toNumber()
-      await plasma.submitBlock(one_hash, BlockType.Order, {from: operator})
-      assert.equal((await plasma.getChildChain.call(blockNumber))[0], one_hash)
-    })
-
-    it ("cannot submit auction blocks out or order", async () => {
-      const plasma = await Plasma.new(operator, 0x0)
-
-      // Only order block allowed
-      await assertRejects(plasma.submitBlock(zeroHash, BlockType.OrderDoubleSign, {from: operator}))
-      await assertRejects(plasma.submitBlock(zeroHash, BlockType.AuctionResult, {from: operator}))
-      await assertRejects(plasma.submitBlock(zeroHash, BlockType.AuctionOutput, {from: operator}))
-
-      await plasma.submitBlock(zeroHash, BlockType.Order, {from: operator})
-
-      // Only double signature allowed
-      await assertRejects(plasma.submitBlock(zeroHash, BlockType.Order, {from: operator}))
-      await assertRejects(plasma.submitBlock(zeroHash, BlockType.AuctionResult, {from: operator}))
-      await assertRejects(plasma.submitBlock(zeroHash, BlockType.AuctionOutput, {from: operator}))
-
-      await plasma.submitBlock(zeroHash, BlockType.OrderDoubleSign, {from: operator})
-
-      // Only AuctionResult block
-      await assertRejects(plasma.submitBlock(zeroHash, BlockType.Order, {from: operator}))
-      await assertRejects(plasma.submitBlock(zeroHash, BlockType.OrderDoubleSign, {from: operator}))
-      await assertRejects(plasma.submitBlock(zeroHash, BlockType.AuctionOutput, {from: operator}))
-
-      await plasma.submitBlock(zeroHash, BlockType.AuctionResult, {from: operator})
-
-      // Only AuctionOutput block
-      await assertRejects(plasma.submitBlock(zeroHash, BlockType.Order, {from: operator}))
-      await assertRejects(plasma.submitBlock(zeroHash, BlockType.OrderDoubleSign, {from: operator}))
-      await assertRejects(plasma.submitBlock(zeroHash, BlockType.AuctionResult, {from: operator}))
-
-      await plasma.submitBlock(zeroHash, BlockType.AuctionOutput, {from: operator})
-
-      // As in beginning
-      await assertRejects(plasma.submitBlock(zeroHash, BlockType.OrderDoubleSign, {from: operator}))
-      await assertRejects(plasma.submitBlock(zeroHash, BlockType.AuctionResult, {from: operator}))
-      await assertRejects(plasma.submitBlock(zeroHash, BlockType.AuctionOutput, {from: operator}))
     })
   })
 
@@ -521,16 +431,12 @@ contract("Plasma", (accounts) => {
 
     it("exits transactions that are exitable", async() => {
       const etherMock = await MockContract.new()
+      await etherMock.givenAnyReturnBool(true)
+
       const plasma = await Plasma.new(operator, etherMock.address)
 
-      // Make sure we can transfer exit funds
-      const amount = 10
-      const etherToken = EtherToken.at(etherMock.address)
-      const transfer = await etherToken.contract.transfer.getData(operator, amount)
-      await etherMock.givenReturn(transfer, abi.rawEncode(["bool"], [true]).toString())
-
       // First Transaction
-      const tx = await generateTransactionWithOutput(operator, 0, amount, 0)
+      const tx = await generateTransactionWithOutput(operator, 0, 10, 0)
       let tree = generateMerkleTree(0, tx.signedTxHash)
       let doubleSignature = await generateDoubleSignature(tx, tree, operator)
 
@@ -546,7 +452,7 @@ contract("Plasma", (accounts) => {
       await fastForward(one_week)
 
       // Another transaction/exit, this time from depositor
-      const anotherTx = await generateTransactionWithOutput(depositor, 0, amount, 0)
+      const anotherTx = await generateTransactionWithOutput(depositor, 0, 10, 0)
       tree = generateMerkleTree(0, anotherTx.signedTxHash)
       doubleSignature = await generateDoubleSignature(anotherTx, tree, depositor)
       blknum = (await plasma.currentChildBlock.call()).toNumber()
@@ -572,7 +478,7 @@ contract("Plasma", (accounts) => {
       const amount = 10
       const etherToken = EtherToken.at(etherMock.address)
       const transfer = await etherToken.contract.transfer.getData(operator, amount)
-      await etherMock.givenReturn(transfer, abi.rawEncode(["bool"], [false]).toString())
+      await etherMock.givenCalldataReturnBool(transfer, false)
 
       // First Transaction
       const tx = await generateTransactionWithOutput(operator, 0, amount, 0)
@@ -595,10 +501,6 @@ contract("Plasma", (accounts) => {
     it("cannot finalize exit if it succesfully challenged", async() => {
       const etherMock = await MockContract.new()
       const plasma = await Plasma.new(operator, etherMock.address)
-
-      // Make sure we fail if we transfer exit funds
-      const methodId = toHex(sha3("transfer(address,uint256)")).slice(0,10)
-      await etherMock.givenRevertAny(methodId)
 
       // Generate Transaction
       const outputIndex = 0
@@ -638,24 +540,10 @@ contract("Plasma", (accounts) => {
 
       await fastForward(2*one_week)
 
-      // If we try to finalize the challenged exit transfer would fail
+      // Make sure no funds are transferred on exit
       await plasma.finalizeExits(0)
+      const count = await etherMock.invocationCount.call()
+      assert.equal(0, count)
     })
   })
-
-  describe("bitmapHasOneAtSpot:", () => {
-    it("True & False", async () => {
-      const plasma = await Plasma.new(operator, 0x0)
-      const be_true = await plasma.bitmapHasOneAtSpot(0, one_zero)
-      assert.equal(be_true, true)
-      const be_false = await plasma.bitmapHasOneAtSpot(1, one_zero)
-      assert.equal(be_false, false)
-    })
-
-    it("Index Out of Range", async () => {
-      const plasma = await Plasma.new(operator, 0x0)
-      await assertRejects(plasma.bitmapHasOneAtSpot(2, one_zero))
-    })
-  })
-
 })  
