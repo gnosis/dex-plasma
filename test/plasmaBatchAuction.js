@@ -4,24 +4,24 @@ const one_hash = "0x" + "1".repeat(64)
 const one_zero = "0x0100"  // This is hex for the bit-array [1, 0]
 
 const MockContract = artifacts.require("./MockContract.sol")
-const BatchAuctionPlasma = artifacts.require("BatchAuctionPlasma.sol")
+const PlasmaBatchAuction = artifacts.require("PlasmaBatchAuction.sol")
 
 const {
   assertRejects,
   BlockType,
 } = require("./utilities.js")
 
-contract("BatchAuctionPlasma", (accounts) => {
+contract("PlasmaBatchAuction", (accounts) => {
   const [operator, depositor] = accounts
   describe("submitBlock", () => {
     it("allows only the operator to submit blocks", async () => {
-      const plasma = await BatchAuctionPlasma.new(operator, 0x0)
+      const plasma = await PlasmaBatchAuction.new(operator, 0x0)
       await assertRejects(plasma.submitBlock(zeroHash, 0, {from: depositor}), "block is also permitted from non-operator")
     })
 
     it("accepts an empty block", async () => {
       const etherMock = await MockContract.new()
-      const plasma = await BatchAuctionPlasma.new(operator, etherMock.address)
+      const plasma = await PlasmaBatchAuction.new(operator, etherMock.address)
 
       const before = (await plasma.currentChildBlock.call()).toNumber()
       await plasma.submitBlock(zeroHash, BlockType.Transaction, {from: operator})
@@ -31,7 +31,7 @@ contract("BatchAuctionPlasma", (accounts) => {
 
     it("inserts non empty block in child chain", async () => {
       const etherMock = await MockContract.new()
-      const plasma = await BatchAuctionPlasma.new(operator, etherMock.address)
+      const plasma = await PlasmaBatchAuction.new(operator, etherMock.address)
 
       const blockNumber = (await plasma.currentChildBlock.call()).toNumber()
       await plasma.submitBlock(one_hash, BlockType.Transaction, {from: operator})
@@ -42,12 +42,12 @@ contract("BatchAuctionPlasma", (accounts) => {
     })
 
     it ("cannot submit a deposit block", async () => {
-      const plasma = await BatchAuctionPlasma.new(operator, 0x0)
+      const plasma = await PlasmaBatchAuction.new(operator, 0x0)
       await assertRejects(plasma.submitBlock(zeroHash, BlockType.Deposit, {from: operator}))
     })
 
     it ("cannot submit a transaction block, while the auction is ongoing", async () => {
-      const plasma = await BatchAuctionPlasma.new(operator, 0x0)
+      const plasma = await PlasmaBatchAuction.new(operator, 0x0)
 
       await plasma.submitBlock(zeroHash, BlockType.Order, {from: operator})
       await assertRejects(plasma.submitBlock(zeroHash, BlockType.Transaction, {from: operator}))
@@ -67,7 +67,7 @@ contract("BatchAuctionPlasma", (accounts) => {
     })
 
     it ("can submit order block after transaction block", async () => {
-      const plasma = await BatchAuctionPlasma.new(operator, 0x0)
+      const plasma = await PlasmaBatchAuction.new(operator, 0x0)
       await plasma.submitBlock(zeroHash, BlockType.Transaction, {from: operator})
       
       const blockNumber = (await plasma.currentChildBlock.call()).toNumber()
@@ -79,7 +79,7 @@ contract("BatchAuctionPlasma", (accounts) => {
       const etherMock = await MockContract.new()
       await etherMock.givenAnyReturnBool(true)
       
-      const plasma = await BatchAuctionPlasma.new(operator, etherMock.address)
+      const plasma = await PlasmaBatchAuction.new(operator, etherMock.address)
       await plasma.deposit(oneETH, 0, {from: depositor})
 
       const blockNumber = (await plasma.currentChildBlock.call()).toNumber()
@@ -88,7 +88,7 @@ contract("BatchAuctionPlasma", (accounts) => {
     })
 
     it ("cannot submit auction blocks out of order", async () => {
-      const plasma = await BatchAuctionPlasma.new(operator, 0x0)
+      const plasma = await PlasmaBatchAuction.new(operator, 0x0)
 
       // Only order block allowed
       await assertRejects(plasma.submitBlock(zeroHash, BlockType.OrderDoubleSign, {from: operator}))
@@ -127,7 +127,7 @@ contract("BatchAuctionPlasma", (accounts) => {
 
   describe("bitmapHasOneAtSpot:", () => {
     it("True & False", async () => {
-      const plasma = await BatchAuctionPlasma.new(operator, 0x0)
+      const plasma = await PlasmaBatchAuction.new(operator, 0x0)
       const be_true = await plasma.bitmapHasOneAtSpot(0, one_zero)
       assert.equal(be_true, true)
       const be_false = await plasma.bitmapHasOneAtSpot(1, one_zero)
@@ -135,7 +135,7 @@ contract("BatchAuctionPlasma", (accounts) => {
     })
 
     it("Index Out of Range", async () => {
-      const plasma = await BatchAuctionPlasma.new(operator, 0x0)
+      const plasma = await PlasmaBatchAuction.new(operator, 0x0)
       await assertRejects(plasma.bitmapHasOneAtSpot(2, one_zero))
     })
   })

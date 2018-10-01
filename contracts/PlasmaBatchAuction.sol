@@ -4,11 +4,11 @@ import "./Plasma.sol";
 
 
 /**
-* @title BatchAuctionPlasma
+* @title PlasmaBatchAuction
 * @dev This contract deals with batch auction specific logic, 
 * such as order/result block submission and auction specific exit gams.
 */
-contract BatchAuctionPlasma is Plasma {
+contract PlasmaBatchAuction is Plasma {
 
     event VolumeRequest(
         uint _utxoPos,
