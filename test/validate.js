@@ -2,7 +2,6 @@ const ValidateWrapper = artifacts.require("ValidateWrapper")
 
 const {
   assertRejects,
-  keccak256,
   toHex
 } = require("./utilities.js")
 
@@ -14,7 +13,7 @@ contract("Validate", (accounts) => {
 
   const txHash = toHex(sha3("tx bytes to be hashed"))
   const rootHash = toHex(sha3("merkle root hash"))
-  const confirmHash = keccak256(txHash, rootHash)
+  const confirmHash = toHex(sha3(txHash + rootHash.slice(2)))
 
   const [signer1, signer2, invalidSigner] = accounts
 
@@ -162,17 +161,5 @@ contract("Validate", (accounts) => {
         "wrong order transaction signatures shouldn't pass"
       )
     })
-
-
-
-
-
-
-
-
-
-
-
   })
-
 })

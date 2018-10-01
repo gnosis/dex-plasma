@@ -116,28 +116,6 @@ const rlpEncodeTransaction = function(exitor, token, amount, inputCount, oindex)
   return RLP.encode(list)
 }
 
-function keccak256(...args) {
-  args = args.map(arg => {
-    if (typeof arg === "string") {
-      if (arg.substring(0, 2) === "0x") {
-        return arg.slice(2)
-      } else {
-        return web3.toHex(arg).slice(2)
-      }
-    }
-
-    if (typeof arg === "number") {
-      return leftPad((arg).toString(16), 64, 0)
-    } else {
-      return ""
-    }
-  })
-
-  args = args.join("")
-
-  return web3.sha3(args, { encoding: "hex" })
-}
-
 const fastForward = async function(seconds) {
   const oldTime = (await web3.eth.getBlock(await web3.eth.blockNumber)).timestamp
   await web3.currentProvider.send({jsonrpc: "2.0", method: "evm_increaseTime", params: [seconds], id: 0})
@@ -151,7 +129,6 @@ const fastForward = async function(seconds) {
 module.exports = {
   assertRejects,
   catchError,
-  keccak256,
   fromHex,
   toHex,
   waitForNBlocks,
