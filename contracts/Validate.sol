@@ -16,7 +16,6 @@ library Validate {
     {
         require(sigs.length % 65 == 0 && sigs.length <= 260, "Signatures failed length verification");
         bytes memory sig1 = BytesLib.slice(sigs, 0, 65);
-        bytes memory sig2 = BytesLib.slice(sigs, 65, 65);
         bytes memory confSig1 = BytesLib.slice(sigs, 130, 65);
         bytes32 confirmationHash = keccak256(abi.encodePacked(txHash, rootHash));
 
@@ -27,9 +26,11 @@ library Validate {
 
         bool check1 = txHashSig1 == ECRecovery.recover(ECRecovery.toEthSignedMessageHash(confirmationHash), confSig1);
 
-        if (inputCount > 0) {
+        if (inputCount > 0 && check1) {  // && allows us to short circuit if check1 is already false.
+            bytes memory sig2 = BytesLib.slice(sigs, 65, 65);
             bytes memory confSig2 = BytesLib.slice(sigs, 195, 65);
-            address txHashSig2 = ECRecovery.recover(txHash, sig2);
+
+            address txHashSig2 = ECRecovery.recover(ECRecovery.toEthSignedMessageHash(txHash), sig2);
             require(txHashSig2 != 0, "Error 2: while evaluating ecrecover on transaction-sig2");
             check2 = txHashSig2 == ECRecovery.recover(ECRecovery.toEthSignedMessageHash(confirmationHash), confSig2);
         }
