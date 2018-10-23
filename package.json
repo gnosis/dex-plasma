@@ -29,7 +29,7 @@
     "merkletreejs": "0.0.10",
     "openzeppelin-solidity": "^1.12.0",
     "rlp": "^2.1.0",
-    "solidity-rlp": "^1.0.0"
+    "solidity-rlp": "^1.1.0"
   },
   "devDependencies": {
     "@digix/tempo": "^0.2.0",
