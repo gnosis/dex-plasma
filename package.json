@@ -1,0 +1,60 @@
+{
+  "name": "dex-contracts",
+  "version": "0.0.1",
+  "description": "contracts for the plasma batch auction",
+  "main": ".eslintrc.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "truffle test",
+    "coverage": "./node_modules/.bin/solidity-coverage",
+    "lint": "./node_modules/.bin/eslint .",
+    "solhint": "./node_modules/.bin/solhint \"contracts/**/*.sol\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gnosis/dex-contracts.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/gnosis/dex-contracts/issues"
+  },
+  "homepage": "https://github.com/gnosis/dex-contracts#readme",
+  "dependencies": {
+    "@gnosis.pm/util-contracts": "^1.0.1",
+    "eslint-plugin-react": "^7.11.1",
+    "fast-memoize": "^2.5.1",
+    "merkletreejs": "0.0.10",
+    "openzeppelin-solidity": "^1.12.0",
+    "rlp": "^2.1.0",
+    "solidity-rlp": "^1.1.0"
+  },
+  "devDependencies": {
+    "@digix/tempo": "^0.2.0",
+    "@gnosis.pm/mock-contract": "2.0.0",
+    "bignumber.js": "^5.0.0",
+    "coveralls": "^3.0.1",
+    "decimal.js": "^7.2.3",
+    "decode-eth": "^0.1.2",
+    "diff": "3.4.0",
+    "eslint": "^4.19.1",
+    "eslint-config-standard": "^11.0.0",
+    "eslint-plugin-import": "^2.11.0",
+    "eslint-plugin-node": "^6.0.0",
+    "eslint-plugin-promise": "^3.7.0",
+    "eslint-plugin-standard": "^3.1.0",
+    "ethereumjs-abi": "^0.6.5",
+    "minimist": "^1.2.0",
+    "solhint": "^1.2.1",
+    "solidity-coverage": "^0.5.4",
+    "truffle": "4.1.14",
+    "truffle-contract": "^3.0.5",
+    "truffle-flattener": "^1.2.5",
+    "truffle-hdwallet-provider": "0.0.5",
+    "truffle-hdwallet-provider-privkey": "^0.2.0",
+    "web3": "^0.20.2",
+    "yargs": "^11.0.0"
+  }
+}

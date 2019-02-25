@@ -1,0 +1,8 @@
+build/*
+coverage*
+coverage/*
+installed_contracts/*
+node_modules/*
+
+.vscode/
+.DS_Store
